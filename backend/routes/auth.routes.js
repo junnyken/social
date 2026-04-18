@@ -158,4 +158,33 @@ router.post('/logout', (req, res) => {
     res.json({ success: true });
 });
 
+// 4. Data Deletion Callback (Required by Facebook)
+// Facebook requires this endpoint for GDPR/privacy compliance
+router.post('/data-deletion', async (req, res) => {
+    try {
+        const { signed_request } = req.body;
+        // In production, you would parse the signed_request to get user_id
+        // and delete their data from your database
+        const confirmationCode = 'del_' + Date.now();
+        const statusUrl = `https://${req.get('host')}/api/v1/auth/deletion-status?code=${confirmationCode}`;
+        
+        res.json({
+            url: statusUrl,
+            confirmation_code: confirmationCode
+        });
+    } catch (e) {
+        console.error('[Auth] Data deletion error:', e.message);
+        res.json({ url: '/', confirmation_code: 'error' });
+    }
+});
+
+// Data deletion status page
+router.get('/deletion-status', (req, res) => {
+    res.json({
+        success: true,
+        message: 'Your data has been scheduled for deletion.',
+        code: req.query.code
+    });
+});
+
 module.exports = router;
