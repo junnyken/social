@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  autoposter:
+    build: .
+    container_name: fb-autoposter
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - ALLOWED_ORIGINS=http://localhost:3000
+      # Change this to your domain in production
+    volumes:
+      - ./backend/data:/app/backend/data
+      # Mount the data folder to persist settings, queue, logs between container restarts.

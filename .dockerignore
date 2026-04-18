@@ -1,0 +1,16 @@
+node_modules/
+backend/node_modules/
+.git/
+.env
+backend/.env
+# Do not copy local data database to image
+backend/data/*.json
+!backend/data/settings.json
+npm-debug.log
+.DS_Store
+.vscode/
+.idea/
+coverage/
+dist/
+build/
+*.log

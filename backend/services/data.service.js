@@ -7,6 +7,8 @@ const crypto = require('crypto');
 class DataService {
     constructor() {
         this.dataDir = path.resolve(__dirname, '..', config.dataDir);
+        this.cache = new Map();
+        this.writeQueue = new Map(); // simple lock mechanism
     }
 
     async ensureFile(collection) {
@@ -24,10 +26,17 @@ class DataService {
     }
 
     async read(collection) {
+        // Return from cache if available
+        if (this.cache.has(collection)) {
+            return JSON.parse(JSON.stringify(this.cache.get(collection))); // return deep copy
+        }
+
         try {
             const file = await this.ensureFile(collection);
             const data = await fs.readFile(file, 'utf8');
-            return JSON.parse(data);
+            const parsed = JSON.parse(data);
+            this.cache.set(collection, parsed);
+            return JSON.parse(JSON.stringify(parsed));
         } catch (e) {
             console.error(`[DataService] Error reading ${collection}:`, e.message);
             return collection === 'settings' ? {} : [];
@@ -35,14 +44,27 @@ class DataService {
     }
 
     async write(collection, data) {
-        try {
-            const file = await this.ensureFile(collection);
-            await fs.writeFile(file, JSON.stringify(data, null, 2), 'utf8');
-            return true;
-        } catch (e) {
-            console.error(`[DataService] Error writing ${collection}:`, e.message);
-            return false;
+        // Wait for previous write on this collection to finish
+        if (this.writeQueue.has(collection)) {
+            await this.writeQueue.get(collection);
         }
+
+        const writePromise = (async () => {
+            try {
+                const file = await this.ensureFile(collection);
+                this.cache.set(collection, JSON.parse(JSON.stringify(data))); // update cache immediately
+                await fs.writeFile(file, JSON.stringify(data, null, 2), 'utf8');
+                return true;
+            } catch (e) {
+                console.error(`[DataService] Error writing ${collection}:`, e.message);
+                return false;
+            } finally {
+                this.writeQueue.delete(collection);
+            }
+        })();
+
+        this.writeQueue.set(collection, writePromise);
+        return writePromise;
     }
 
     // Basic CRUD Operations

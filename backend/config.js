@@ -1,7 +1,9 @@
 require('dotenv').config && require('dotenv').config();
 
 module.exports = {
+  env: process.env.NODE_ENV || 'development',
   port: process.env.PORT || 3000,
+  allowedOrigins: process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : ['http://localhost:3000'],
   fb: {
     appId: process.env.FB_APP_ID,
     appSecret: process.env.FB_APP_SECRET,

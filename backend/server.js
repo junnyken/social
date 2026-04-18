@@ -2,6 +2,8 @@ const express = require('express');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const morgan = require('morgan');
+const helmet = require('helmet');
+const compression = require('compression');
 const http = require('http');
 const { WebSocketServer } = require('ws');
 const path = require('path');
@@ -9,12 +11,21 @@ const config = require('./config');
 
 // Initialize Express App
 const app = express();
+app.set('trust proxy', 1);
 
 // Middleware
-app.use(cors({ origin: true, credentials: true }));
+app.use(helmet({
+    contentSecurityPolicy: false, // Since this is a simple local/SPA app, disable CSP temporarily to prevent breaking external scripts.
+}));
+app.use(compression());
+app.use(cors({ origin: config.allowedOrigins, credentials: true }));
 app.use(express.json());
 app.use(cookieParser());
-app.use(morgan('dev')); // Logging
+if (config.env === 'development') {
+    app.use(morgan('dev')); // Logging
+} else {
+    app.use(morgan('short'));
+}
 
 const authRoutes = require('./routes/auth.routes');
 const accountsRoutes = require('./routes/accounts.routes');
@@ -24,6 +35,17 @@ const logsRoutes = require('./routes/logs.routes');
 const configRoutes = require('./routes/config.routes');
 const analyticsRoutes = require('./routes/analytics.routes');
 const listeningRoutes = require('./routes/listening.routes');
+
+// Health Check Endpoint
+app.get('/api/v1/health', (req, res) => {
+    res.json({
+        status: 'ok',
+        uptime: process.uptime(),
+        environment: config.env,
+        memory: process.memoryUsage(),
+        timestamp: new Date().toISOString()
+    });
+});
 
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/accounts', accountsRoutes);
