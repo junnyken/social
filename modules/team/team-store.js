@@ -1,6 +1,8 @@
 // ============================================================
-// Team Store — Members, Roles, Invitations, Activity
+// Team Store — Members, Roles, Invitations, Activity (API Backed)
 // ============================================================
+
+import { emit, onSocketEvent } from '../collab/socket-client.js';
 
 export const ROLES = {
   owner:   { id: 'owner',   label: 'Owner',   color: '#F59E0B', icon: '👑', permissions: ['*'] },
@@ -10,51 +12,120 @@ export const ROLES = {
 };
 
 let currentUser = { id: 'user-001', name: 'Trieu Nguyen', email: 'trieu@example.com', role: 'owner', avatar: null, joinedAt: new Date().toISOString(), lastActive: new Date().toISOString() };
-
-let members = [{ ...currentUser, status: 'active' }];
+let members = [];
 let invitations = [];
 let activities = [];
 let listeners = [];
+
+async function apiFetch(url, options = {}) {
+    const token = window.localStorage.getItem('token') || '';
+    const res = await fetch(url, {
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+            ...(options.headers || {})
+        }
+    });
+    return res.json();
+}
+
+export async function syncTeam() {
+    try {
+        const data = await apiFetch('/api/v1/team');
+        if (data.success) {
+            members = data.data.members || [];
+            invitations = data.data.invitations || [];
+            activities = data.data.activities || [];
+            
+            // Set current user if found in members (using a mocked ID matcher or default)
+            // Just placeholder for now
+            if (members.length > 0) {
+                currentUser = members.find(m => m.role === 'owner') || members[0];
+            }
+            notify();
+        }
+    } catch (e) { console.error('Team sync error', e); }
+}
+
+onSocketEvent((event) => {
+    if (event.type === 'team_updated') {
+        syncTeam();
+    }
+});
 
 export function getCurrentUser() { return { ...currentUser }; }
 export function setCurrentUser(u) { currentUser = { ...u }; }
 export function getMembers() { return [...members]; }
 
-export function addMember(data) {
-  const member = { id: crypto.randomUUID(), status: 'active', joinedAt: new Date().toISOString(), lastActive: new Date().toISOString(), ...data };
-  members.push(member);
-  addActivity({ type: 'member_added', actorId: currentUser.id, actorName: currentUser.name, detail: `thêm ${member.name} với role ${ROLES[member.role]?.label}` });
-  notify();
-  return member;
+export async function addMember(data) {
+    try {
+        const res = await apiFetch('/api/v1/team/members', {
+            method: 'POST',
+            body: JSON.stringify(data)
+        });
+        if (res.success) {
+            await syncTeam();
+            return res.data;
+        }
+    } catch (e) {}
 }
 
-export function updateMemberRole(memberId, newRole) {
-  const m = members.find(x => x.id === memberId);
-  if (!m || m.id === currentUser.id) return;
-  const old = m.role; m.role = newRole;
-  addActivity({ type: 'role_changed', actorId: currentUser.id, actorName: currentUser.name, detail: `đổi role ${m.name}: ${ROLES[old]?.label} → ${ROLES[newRole]?.label}` });
-  notify();
+export async function updateMemberRole(memberId, newRole) {
+    try {
+        const res = await apiFetch(`/api/v1/team/members/${memberId}`, {
+            method: 'PATCH',
+            body: JSON.stringify({ role: newRole })
+        });
+        if (res.success) {
+            await syncTeam();
+        }
+    } catch (e) {}
 }
 
-export function removeMember(memberId) {
-  const m = members.find(x => x.id === memberId);
-  if (!m || memberId === currentUser.id) return;
-  members = members.filter(x => x.id !== memberId);
-  addActivity({ type: 'member_removed', actorId: currentUser.id, actorName: currentUser.name, detail: `xóa ${m.name} khỏi team` });
-  notify();
+export async function removeMember(memberId) {
+    try {
+        const res = await apiFetch(`/api/v1/team/members/${memberId}`, { method: 'DELETE' });
+        if (res.success) {
+            await syncTeam();
+        }
+    } catch (e) {}
 }
 
-export function createInvitation(email, role) {
-  const inv = { id: crypto.randomUUID(), email, role, invitedBy: currentUser.id, invitedByName: currentUser.name, token: Math.random().toString(36).slice(2), createdAt: new Date().toISOString(), expiresAt: new Date(Date.now() + 7 * 86400000).toISOString(), status: 'pending' };
-  invitations.push(inv);
-  notify();
-  return inv;
+export async function createInvitation(email, role) {
+    try {
+        const res = await apiFetch('/api/v1/team/invitations', {
+            method: 'POST',
+            body: JSON.stringify({ email, role })
+        });
+        if (res.success) {
+            await syncTeam();
+            return res.data;
+        }
+    } catch (e) {}
 }
+
 export function getInvitations() { return [...invitations]; }
-export function revokeInvitation(id) { invitations = invitations.filter(i => i.id !== id); notify(); }
 
-export function addActivity(data) { activities.unshift({ id: crypto.randomUUID(), timestamp: new Date().toISOString(), ...data }); activities = activities.slice(0, 200); }
+export async function revokeInvitation(id) {
+    try {
+        const res = await apiFetch(`/api/v1/team/invitations/${id}`, { method: 'DELETE' });
+        if (res.success) {
+            await syncTeam();
+        }
+    } catch (e) {}
+}
+
+export function addActivity(data) { 
+    // In real scenario, backend handles this internally or via POST,
+    // but the store UI shouldn't arbitrarily add it.
+}
+
 export function getActivities(limit = 50) { return activities.slice(0, limit); }
 
 export function onUpdate(fn) { listeners.push(fn); }
 function notify() { listeners.forEach(fn => fn()); }
+
+if (typeof window !== 'undefined') {
+    syncTeam();
+}

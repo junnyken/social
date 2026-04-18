@@ -122,13 +122,43 @@ export function getTimeSeries(platform, metric, days) {
   return series;
 }
 
-export async function getRealKPIs(range = '30d') {
-  const data = await fetchAnalyticsAPI('overview', range);
-  if (data) return data;
+export async function getRealKPIs(pageId, range = '7d') {
+  if (!pageId) return null;
+  const rangeDays = range.replace('d', '');
+  try {
+    const res = await fetch(`/api/v1/insights/${pageId}/overview?range=${rangeDays}`);
+    const data = await res.json();
+    if (data.success && data.data) return data.data;
+  } catch (error) {
+    console.error('getRealKPIs error:', error);
+  }
   return null; // fallback signal
 }
 
-export function getKPIs(platform = 'all') {
+export async function getKPIs(platform = 'all', pageId = null) {
+  if (platform === 'facebook' && pageId) {
+      try {
+          const res = await fetch(`/api/v1/insights/${pageId}/overview?range=30`, {
+              headers: { 'Authorization': `Bearer ${window.localStorage.getItem('token') || ''}` }
+          });
+          const data = await res.json();
+          if (data.success) {
+              return {
+                  followers: data.data.followers,
+                  followersGrowth: data.data.followersDelta,
+                  reach: data.data.reach,
+                  impressions: data.data.impressions,
+                  engagementRate: data.data.impressions > 0 ? ((data.data.engagement / data.data.impressions) * 100).toFixed(1) : 4.2,
+                  postsCount: 0, // Fallback
+                  pageHealthScore: 85
+              };
+          }
+      } catch (e) {
+          console.error('getRealKPIs error:', e);
+      }
+  }
+
+  // Fallback to mock
   if (platform === 'all') {
     const totals = Object.values(platformStats).reduce((acc, s) => ({
       followers:       (acc.followers || 0) + s.followers,

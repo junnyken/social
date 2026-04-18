@@ -7,8 +7,13 @@ const dataService = require('../services/data.service');
 
 // 1. Provide OAuth Login URL (JSON response for fetch)
 router.get('/login-url', (req, res) => {
+    // If no real App ID configured, use Mock Flow directly instead of hitting Facebook
+    if (!config.fb.appId || config.fb.appId === 'MOCK_APP_ID') {
+        return res.json({ success: true, loginUrl: 'http://localhost:3000/api/v1/auth/callback?code=mock_code_123' });
+    }
+
     const stringifiedParams = new URLSearchParams({
-        client_id: config.fb.appId || 'MOCK_APP_ID',
+        client_id: config.fb.appId,
         redirect_uri: config.fb.redirectUri,
         scope: config.fb.scopes.join(','),
         response_type: 'code',
@@ -73,7 +78,7 @@ router.get('/callback', async (req, res) => {
             return res.redirect('/auth-callback.html?status=success');
         }
 
-        // Real Access Token Exchange
+        // Real Access Token Exchange (Short-lived)
         const tokenRes = await axios.get(`https://graph.facebook.com/${config.fb.apiVersion}/oauth/access_token`, {
             params: {
                 client_id: config.fb.appId,
@@ -82,7 +87,18 @@ router.get('/callback', async (req, res) => {
                 code,
             }
         });
-        const accessToken = tokenRes.data.access_token;
+        const shortLivedToken = tokenRes.data.access_token;
+
+        // Exchange for Long-lived User Token (60 days)
+        const longLivedRes = await axios.get(`https://graph.facebook.com/${config.fb.apiVersion}/oauth/access_token`, {
+            params: {
+                grant_type: 'fb_exchange_token',
+                client_id: config.fb.appId,
+                client_secret: config.fb.appSecret,
+                fb_exchange_token: shortLivedToken
+            }
+        });
+        const accessToken = longLivedRes.data.access_token; // This is now long-lived
 
         // Fetch User Info
         const profileRes = await axios.get(`https://graph.facebook.com/${config.fb.apiVersion}/me`, {
@@ -90,7 +106,7 @@ router.get('/callback', async (req, res) => {
         });
         const userData = profileRes.data;
 
-        // Fetch user pages
+        // Fetch user pages (Tokens received here will be never-expiring)
         const pagesRes = await axios.get(`https://graph.facebook.com/${config.fb.apiVersion}/me/accounts`, {
             params: { access_token: accessToken }
         });

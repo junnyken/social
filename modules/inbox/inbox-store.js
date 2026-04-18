@@ -15,14 +15,25 @@ export function addMessages(newMessages) {
   return added.length;
 }
 
-export function markRead(messageId) {
+export async function markRead(messageId) {
   const msg = messages.find(m => m.id === messageId);
-  if (msg && !msg.read) { msg.read = true; unreadCount = Math.max(0, unreadCount - 1); notifyListeners(); }
+  if (msg && !msg.read) { 
+    msg.read = true; 
+    unreadCount = Math.max(0, unreadCount - 1); 
+    notifyListeners(); 
+    // Persist
+    if (messageId.startsWith('fb_')) fetch(`/api/v1/inbox/messages/${messageId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ read: true }) }).catch(e => console.error(e));
+  }
 }
 
-export function markDone(messageId) {
+export async function markDone(messageId) {
   const msg = messages.find(m => m.id === messageId);
-  if (msg) { msg.status = 'done'; notifyListeners(); }
+  if (msg) { 
+    msg.status = 'done'; 
+    notifyListeners(); 
+    // Persist
+    if (messageId.startsWith('fb_')) fetch(`/api/v1/inbox/messages/${messageId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'done' }) }).catch(e => console.error(e));
+  }
 }
 
 export function getMessages(filters = {}) {

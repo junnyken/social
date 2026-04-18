@@ -1,7 +1,29 @@
 import { connectWebSocket, Auth, Queue, onEvent } from './api-client.js';
+import { initSocket, trackNavigation } from '../modules/collab/socket-client.js';
+import { initPresenceUI } from '../modules/collab/presence-ui.js';
+import { initNotificationUI } from '../modules/collab/notification-ui.js';
+import { initErrorBoundary } from '../modules/collab/error-boundary.js';
+
+import { getLanguage, setLanguage, t } from './i18n.js';
 
 // ── App Init ─────────────────────────────────────────────────
 async function initApp() {
+  // Setup i18n toggle
+  const langBtn = document.getElementById('lang-toggle');
+  if (langBtn) {
+    langBtn.textContent = getLanguage().toUpperCase();
+    langBtn.onclick = () => {
+      const newLang = getLanguage() === 'vi' ? 'en' : 'vi';
+      setLanguage(newLang);
+      langBtn.textContent = newLang.toUpperCase();
+      translateUI();
+    };
+  }
+  translateUI();
+
+  // Error boundary first — catch all errors from the start
+  initErrorBoundary();
+
   connectWebSocket();
 
   try {
@@ -9,6 +31,11 @@ async function initApp() {
     const res = await Auth.getStatus().catch(() => ({}));
     // Note: For local bypass, no forced login unless server requires it
   } catch {}
+
+  // Initialize Socket.IO and UI components
+  await initSocket();
+  initPresenceUI();
+  initNotificationUI();
 
   // 4. Start routing
   router();
@@ -43,6 +70,9 @@ async function router() {
   document.querySelectorAll('.nav-item').forEach(n => {
       n.classList.toggle('active', n.dataset.path === hash.replace('#',''));
   });
+
+  // Track navigation in presence system
+  trackNavigation(hash.replace('#/', ''));
 
   const routes = {
     '#/dashboard': () => import('./views/dashboard.view.js').then(m => m.renderDashboard(main)),
@@ -92,6 +122,12 @@ async function router() {
         if(window.refreshIcons) window.refreshIcons();
         return null;
     },
+    '#/analytics-pro': () => {
+        main.innerHTML = '<div id="analytics-pro-container"></div>';
+        import('../modules/analytics/analytics-pro.js').then(m => m.renderAnalyticsPro(document.querySelector('#analytics-pro-container')));
+        if(window.refreshIcons) window.refreshIcons();
+        return null;
+    },
     '#/inbox': () => {
         const section = document.getElementById('page-inbox');
         main.innerHTML = section ? section.innerHTML : '<div id="inbox-container"></div>';
@@ -101,10 +137,8 @@ async function router() {
         return null;
     },
     '#/ai': () => {
-        const section = document.getElementById('page-ai');
-        main.innerHTML = section ? section.innerHTML : '<div id="ai-container"></div>';
-        if (window._initAI) window._initAI();
-        else import('../modules/ai/ai-ui.js').then(m => m.renderAIPage(document.querySelector('#ai-container')));
+        main.innerHTML = '<div id="ai-container"></div>';
+        import('../modules/ai/ai-command-center.js').then(m => m.renderAICommandCenter(document.querySelector('#ai-container')));
         if(window.refreshIcons) window.refreshIcons();
         return null;
     },
@@ -172,6 +206,42 @@ async function router() {
         if(window.refreshIcons) window.refreshIcons();
         return null;
     },
+    '#/ab-test': () => {
+        main.innerHTML = '<div id="abtest-container"></div>';
+        import('../modules/abtest/abtest-ui.js').then(m => m.renderABTestLab(document.querySelector('#abtest-container')));
+        if(window.refreshIcons) window.refreshIcons();
+        return null;
+    },
+    '#/bulk-publish': () => {
+        main.innerHTML = '<div id="bulk-container"></div>';
+        import('../modules/bulk/bulk-publisher-ui.js').then(m => m.renderBulkPublisher(document.querySelector('#bulk-container')));
+        if(window.refreshIcons) window.refreshIcons();
+        return null;
+    },
+    '#/evergreen': () => {
+        main.innerHTML = '<div id="evergreen-container"></div>';
+        import('../modules/evergreen/evergreen-ui.js').then(m => m.renderEvergreen(document.querySelector('#evergreen-container')));
+        if(window.refreshIcons) window.refreshIcons();
+        return null;
+    },
+    '#/reports': () => {
+        main.innerHTML = '<div id="reports-container"></div>';
+        import('../modules/reports/reports-ui.js').then(m => m.renderReportsUI(document.querySelector('#reports-container')));
+        if(window.refreshIcons) window.refreshIcons();
+        return null;
+    },
+    '#/link-in-bio': () => {
+        main.innerHTML = '<div id="linkinbio-container"></div>';
+        import('../modules/linkinbio/linkinbio-ui.js').then(m => m.renderLinkInBio(document.querySelector('#linkinbio-container')));
+        if(window.refreshIcons) window.refreshIcons();
+        return null;
+    },
+    '#/audit': () => {
+        main.innerHTML = '<div id="audit-container"></div>';
+        import('../modules/audit/audit-ui.js').then(m => m.renderAudit(document.querySelector('#audit-container')));
+        if(window.refreshIcons) window.refreshIcons();
+        return null;
+    },
     '#/login':     () => {
         // Show login page from template
         const tpl = document.getElementById('page-login');
@@ -210,6 +280,21 @@ async function router() {
     currentCleanup = await renderFn() || null;
     requestAnimationFrame(() => { main.style.opacity = '1'; });
   }
+}
+
+window.addEventListener('language_changed', () => {
+    translateUI();
+    // Re-render current page to apply translations if there's a refresh function
+    if (typeof window.refreshCurrentPage === 'function') {
+        window.refreshCurrentPage();
+    }
+});
+
+function translateUI() {
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        el.textContent = t(`nav.${key}`) || t(key);
+    });
 }
 
 // Initialize

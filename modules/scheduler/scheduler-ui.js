@@ -845,5 +845,3 @@ function openAddRSSModal(container) {
 
 // Scheduled imports (cho feed recycling chạy async)
 export { scheduleRecycledContent };
-
-export { renderScheduler };

@@ -95,22 +95,42 @@ export async function postWithImages(pageId, message, imageUrls = []) {
  * Lấy insights của Page (stats tổng quan)
  */
 export async function getPageInsights(pageId) {
-  const token = getPageToken(pageId);
-  return fbRequest('GET', `/${pageId}/insights`, {
-    metric: 'page_fans,page_post_engagements,page_impressions',
-    period: 'day',
-    access_token: token
-  });
+  try {
+    const res = await fetch(`/api/v1/insights/${pageId}/overview?range=7`);
+    const data = await res.json();
+    if (data.success) return data.data;
+    throw new Error(data.message);
+  } catch (error) {
+    console.warn('[fb-api] fallback for insights', error);
+    // Backwards compatible fallback
+    const token = getPageToken(pageId);
+    return fbRequest('GET', `/${pageId}/insights`, {
+      metric: 'page_fans,page_post_engagements,page_impressions',
+      period: 'day',
+      access_token: token
+    });
+  }
 }
 
 /**
  * Lấy danh sách bài đã đăng
  */
 export async function getPagePosts(pageId, limit = 10) {
-  const token = getPageToken(pageId);
-  return fbRequest('GET', `/${pageId}/feed`, {
-    fields: 'id,message,created_time,permalink_url,full_picture',
-    limit,
-    access_token: token
-  });
+  try {
+    const res = await fetch(`/api/v1/fb/pages/${pageId}/posts?limit=${limit}`);
+    const data = await res.json();
+    if (data.success && data.data && data.data.posts) {
+      return { data: data.data.posts }; // match old structure
+    }
+    throw new Error(data.message);
+  } catch (error) {
+    console.warn('[fb-api] fallback for getPagePosts', error);
+    // Backwards compatible fallback
+    const token = getPageToken(pageId);
+    return fbRequest('GET', `/${pageId}/feed`, {
+      fields: 'id,message,created_time,permalink_url,full_picture',
+      limit,
+      access_token: token
+    });
+  }
 }

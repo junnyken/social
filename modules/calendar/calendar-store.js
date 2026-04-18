@@ -1,35 +1,74 @@
 // ============================================================
-// Calendar Store — Scheduled posts storage
+// Calendar Store — Unified with Queue (schedules.json)
 // ============================================================
 
 let _posts = [];
 const _listeners = [];
 
+export async function syncCalendar() {
+  try {
+    const res = await fetch('/api/v1/queue', {
+      headers: { 'Authorization': `Bearer ${window.localStorage.getItem('token') || ''}` }
+    });
+    const data = await res.json();
+    if (data.success) {
+      _posts = data.data.map(q => ({
+        id: q.id,
+        content: q.content,
+        platforms: [q.target?.name || 'facebook'],
+        scheduledAt: q.scheduledAt,
+        status: q.status,
+        createdAt: q.createdAt || new Date().toISOString()
+      }));
+      _notify();
+    }
+  } catch (e) {
+    console.error('Error syncing calendar', e);
+  }
+}
+
 export function getCalendarPosts() { return [..._posts]; }
 
-export function addCalendarPost(post) {
-  const entry = {
-    id: post.id || crypto.randomUUID(),
-    content: post.content || '',
-    platforms: post.platforms || ['facebook'],
-    scheduledAt: post.scheduledAt || new Date().toISOString(),
-    status: post.status || 'pending', // pending | done | failed
-    createdAt: new Date().toISOString()
-  };
-  _posts.push(entry);
-  _notify();
-  return entry;
+export async function addCalendarPost(post) {
+  try {
+    const res = await fetch('/api/v1/queue', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        accountId: 'current_user',
+        target: { id: post.pageId || 'mock', type: 'page', name: post.platforms?.[0] || 'facebook' },
+        content: post.content,
+        scheduledAt: post.scheduledAt || new Date().toISOString()
+      })
+    });
+    const data = await res.json();
+    if (data.success) {
+      await syncCalendar();
+      return data.data;
+    }
+  } catch (e) { console.error('Error adding calendar post', e); }
 }
 
-export function updateCalendarPost(id, updates) {
-  const post = _posts.find(p => p.id === id);
-  if (post) { Object.assign(post, updates); _notify(); }
-  return post;
+export async function updateCalendarPost(id, updates) {
+  try {
+    const res = await fetch(`/api/v1/queue/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates)
+    });
+    if ((await res.json()).success) {
+      await syncCalendar();
+    }
+  } catch(e) { console.error('Error updating calendar', e); }
 }
 
-export function removeCalendarPost(id) {
-  _posts = _posts.filter(p => p.id !== id);
-  _notify();
+export async function removeCalendarPost(id) {
+  try {
+    const res = await fetch(`/api/v1/queue/${id}`, { method: 'DELETE' });
+    if ((await res.json()).success) {
+      await syncCalendar();
+    }
+  } catch(e) { console.error('Error removing calendar', e); }
 }
 
 export function getPostsByDate(date) {
@@ -40,40 +79,12 @@ export function getPostsByDate(date) {
 export function onCalendarUpdate(fn) { _listeners.push(fn); }
 function _notify() { _listeners.forEach(fn => fn()); }
 
-// Seed demo data
 export function seedDemoData() {
-  if (_posts.length > 0) return;
-  const now = new Date();
-  const platforms = ['facebook', 'instagram', 'twitter', 'linkedin'];
-  const contents = [
-    '🔥 Flash sale cuối tuần — Giảm 50% toàn bộ sản phẩm!',
-    '✨ Ra mắt BST mới — Xu hướng Xuân Hè 2026',
-    '📸 Behind the scenes buổi chụp hình sản phẩm',
-    '💡 5 tips marketing hiệu quả cho SME',
-    '🎉 Minigame tặng quà — Comment để tham gia!',
-    '❤️ Cảm ơn 10K followers! Ưu đãi đặc biệt',
-    '🍜 Menu mới tháng này — Thử ngay!',
-    '💄 Tutorial makeup tự nhiên cho công sở',
-    '🏠 Dự án mới — Căn hộ view sông giá tốt',
-    '📚 Khóa học online miễn phí tuần này'
-  ];
+  // Demo data is now synced from real backend, but we can do an initial fetch
+  syncCalendar();
+}
 
-  for (let i = -3; i <= 14; i++) {
-    const count = Math.random() > 0.5 ? 1 : Math.random() > 0.3 ? 2 : 0;
-    for (let j = 0; j < count; j++) {
-      const d = new Date(now);
-      d.setDate(d.getDate() + i);
-      d.setHours(8 + Math.floor(Math.random() * 12), Math.floor(Math.random() * 4) * 15, 0, 0);
-
-      _posts.push({
-        id: crypto.randomUUID(),
-        content: contents[Math.floor(Math.random() * contents.length)],
-        platforms: [platforms[Math.floor(Math.random() * platforms.length)]],
-        scheduledAt: d.toISOString(),
-        status: i < 0 ? (Math.random() > 0.2 ? 'done' : 'failed') : 'pending',
-        createdAt: new Date(d.getTime() - 86400000).toISOString()
-      });
-    }
-  }
-  _notify();
+if (typeof window !== 'undefined') {
+  syncCalendar();
+  setInterval(syncCalendar, 30000);
 }

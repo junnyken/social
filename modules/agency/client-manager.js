@@ -1,32 +1,48 @@
 /**
- * Client Manager — Manage client accounts within workspace
+ * Client Manager — Manage client accounts within workspace (API Backed)
  * Track which team member manages which client
  */
 
 let clients = [];
+let listeners = [];
+
+async function apiFetch(url, options = {}) {
+    const token = window.localStorage.getItem('token') || '';
+    const res = await fetch(url, {
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+            ...(options.headers || {})
+        }
+    });
+    return res.json();
+}
+
+export async function syncClients() {
+    try {
+        const res = await apiFetch('/api/v1/agency/clients');
+        if (res.success) {
+            clients = res.data || [];
+            notify();
+        }
+    } catch (e) {
+        console.error('Clients sync error', e);
+    }
+}
 
 // ── Create Client ─────────────────────────────────────────────
-export function addClient(clientData) {
-  const client = {
-    id: crypto.randomUUID(),
-    workspaceId: clientData.workspaceId,
-    name: clientData.name,
-    industry: clientData.industry,
-    email: clientData.email,
-    phone: clientData.phone,
-    website: clientData.website,
-    socialAccounts: clientData.socialAccounts || [],  // {platform, handle, url}
-    assignedTo: clientData.assignedTo,  // userId
-    status: 'active',  // active, paused, archived
-    plan: clientData.plan || 'free',
-    monthlyBudget: clientData.monthlyBudget || 0,
-    notes: clientData.notes,
-    createdAt: new Date().toISOString(),
-    lastModified: new Date().toISOString()
-  };
-
-  clients.push(client);
-  return client;
+export async function addClient(clientData) {
+    try {
+        const res = await apiFetch('/api/v1/agency/clients', {
+            method: 'POST',
+            body: JSON.stringify(clientData)
+        });
+        if (res.success) {
+            await syncClients();
+            return res.data;
+        }
+    } catch (e) { return null; }
 }
 
 export function getClient(id) {
@@ -41,12 +57,17 @@ export function getClientsByAssignee(workspaceId, userId) {
   return clients.filter(c => c.workspaceId === workspaceId && c.assignedTo === userId);
 }
 
-export function updateClient(id, updates) {
-  const client = getClient(id);
-  if (client) {
-    Object.assign(client, updates, { lastModified: new Date().toISOString() });
-  }
-  return client;
+export async function updateClient(id, updates) {
+    try {
+        const res = await apiFetch(`/api/v1/agency/clients/${id}`, {
+            method: 'PATCH',
+            body: JSON.stringify(updates)
+        });
+        if (res.success) {
+            await syncClients();
+            return res.data;
+        }
+    } catch (e) { return null; }
 }
 
 export function reassignClient(clientId, newAssignee) {
@@ -57,16 +78,22 @@ export function archiveClient(id) {
   return updateClient(id, { status: 'archived' });
 }
 
-export function deleteClient(id) {
-  clients = clients.filter(c => c.id !== id);
+export async function deleteClient(id) {
+    try {
+        const res = await apiFetch(`/api/v1/agency/clients/${id}`, { method: 'DELETE' });
+        if (res.success) {
+            await syncClients();
+        }
+    } catch (e) {}
 }
 
 // ── Client Social Accounts ────────────────────────────────────
-export function addClientSocialAccount(clientId, account) {
+export async function addClientSocialAccount(clientId, account) {
   const client = getClient(clientId);
   if (!client) return null;
 
-  client.socialAccounts.push({
+  const socialAccounts = client.socialAccounts || [];
+  socialAccounts.push({
     id: crypto.randomUUID(),
     platform: account.platform,
     handle: account.handle,
@@ -75,15 +102,14 @@ export function addClientSocialAccount(clientId, account) {
     connectedAt: account.connected ? new Date().toISOString() : null
   });
 
-  return client;
+  return await updateClient(clientId, { socialAccounts });
 }
 
-export function removeClientSocialAccount(clientId, accountId) {
+export async function removeClientSocialAccount(clientId, accountId) {
   const client = getClient(clientId);
-  if (client) {
-    client.socialAccounts = client.socialAccounts.filter(a => a.id !== accountId);
-  }
-  return client;
+  if (!client) return null;
+  const socialAccounts = (client.socialAccounts || []).filter(a => a.id !== accountId);
+  return await updateClient(clientId, { socialAccounts });
 }
 
 // ── Client Analytics ──────────────────────────────────────────
@@ -108,7 +134,6 @@ export function getClientStatus(clientId) {
   const client = getClient(clientId);
   if (!client) return null;
 
-  const isActive = client.status === 'active';
   const metrics = getClientMetrics(clientId);
 
   return {
@@ -119,4 +144,13 @@ export function getClientStatus(clientId) {
     budgetRemaining: client.monthlyBudget,
     metrics
   };
+}
+
+export function onUpdate(fn) { listeners.push(fn); }
+function notify() { listeners.forEach(fn => fn()); }
+
+// Initialize
+if (typeof window !== 'undefined') {
+    syncClients();
+    window.syncClients = syncClients; // Allow workspace-manager to trigger resync
 }

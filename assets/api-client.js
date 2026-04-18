@@ -7,28 +7,45 @@ const WS_URL   = 'ws://localhost:3000';
 
 // ── HTTP Helpers ─────────────────────────────────────────────
 
-async function request(method, path, body = null) {
+async function request(method, path, body = null, retries = 2) {
   const opts = {
     method,
-    credentials: 'omit', // Standard CORS requires omit vs include unless express is setup, but we use extension bypass
+    credentials: 'omit',
     headers: { 'Content-Type': 'application/json' }
   };
   if (body) opts.body = JSON.stringify(body);
 
-  const res = await fetch(`${API_BASE}${path}`, opts);
+  let attempt = 0;
+  while (attempt <= retries) {
+      try {
+          const res = await fetch(`${API_BASE}${path}`, opts);
 
-  // Token hết hạn → redirect về login
-  if (res.status === 401) {
-    window.location.hash = '#/login';
-    throw new Error('Unauthorized');
+          // Token hết hạn → redirect về login
+          if (res.status === 401) {
+            window.location.hash = '#/login';
+            throw new Error('Unauthorized');
+          }
+
+          if (!res.ok) {
+            // If 5xx or rate limited and we have retries left, throw to trigger retry
+            if ((res.status >= 500 || res.status === 429) && attempt < retries) {
+                throw new Error(`HTTP ${res.status}`);
+            }
+            // Otherwise, it's a hard error (like 400, 404)
+            const err = await res.json().catch(() => ({ message: 'Unknown error' }));
+            throw new Error(err.message || `HTTP ${res.status}`);
+          }
+
+          return await res.json();
+      } catch (e) {
+          if (e.message === 'Unauthorized' || attempt >= retries) {
+              throw e;
+          }
+          attempt++;
+          // Exponential backoff
+          await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempt-1)));
+      }
   }
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ message: 'Unknown error' }));
-    throw new Error(err.message || `HTTP ${res.status}`);
-  }
-
-  return res.json();
 }
 
 export const api = {

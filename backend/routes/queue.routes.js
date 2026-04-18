@@ -42,6 +42,43 @@ router.post('/', async (req, res) => {
     res.json({ success: true, data: newJob });
 });
 
+// Get stats
+router.get('/stats', async (req, res) => {
+    const schedules = await dataService.getAll('schedules');
+    const userQueue = schedules.filter(s => s.accountId === req.user.id);
+    
+    let pending = 0, processing = 0, done = 0, failed = 0;
+    userQueue.forEach(s => {
+        if (s.status === 'pending') pending++;
+        else if (s.status === 'processing') processing++;
+        else if (s.status === 'done') done++;
+        else if (s.status === 'failed') failed++;
+    });
+
+    const pendingQueue = userQueue.filter(s => s.status === 'pending').sort((a,b) => new Date(a.scheduledAt) - new Date(b.scheduledAt));
+    const nextPostIn = pendingQueue.length > 0 ? Math.round((new Date(pendingQueue[0].scheduledAt) - new Date()) / 60000) : null;
+
+    res.json({ success: true, data: { total: userQueue.length, pending, processing, done, failed, nextPostIn } });
+});
+
+// Update queued post (reschedule)
+router.patch('/:id', async (req, res) => {
+    const job = await dataService.getById('schedules', req.params.id);
+    
+    if (!job || job.accountId !== req.user.id) {
+        return res.status(404).json({ success: false, message: 'Queue item not found or unauthorized' });
+    }
+
+    const allowedUpdates = ['scheduledAt', 'content', 'status', 'images'];
+    const updates = {};
+    for (const key of allowedUpdates) {
+        if (req.body[key] !== undefined) updates[key] = req.body[key];
+    }
+
+    const updatedJob = await dataService.update('schedules', req.params.id, updates);
+    res.json({ success: true, data: updatedJob });
+});
+
 // Cancel/Delete queued post
 router.delete('/:id', async (req, res) => {
     const job = await dataService.getById('schedules', req.params.id);

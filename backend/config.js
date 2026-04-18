@@ -13,6 +13,13 @@ module.exports = {
       'pages_manage_posts',
       'pages_read_engagement',
       'pages_show_list',
+      'pages_manage_metadata',
+      'pages_read_user_content',
+      'pages_messaging',
+      'business_management',
+      'catalog_management',
+      'ads_management',
+      'ads_read',
       'publish_to_groups'
     ]
   },

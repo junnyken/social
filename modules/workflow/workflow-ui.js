@@ -89,14 +89,33 @@ function openDrawer(container, postId) {
   });
 
   // Actions
-  container.querySelectorAll('[data-action]').forEach(btn => btn.addEventListener('click', () => {
+  container.querySelectorAll('[data-action]').forEach(btn => btn.addEventListener('click', async () => {
     try {
       const a = btn.dataset.action;
-      if (a === 'submit') { submitForReview(postId); if (window.Toast) window.Toast.show('Đã gửi duyệt!', 'success'); }
-      if (a === 'approve') { approvePost(postId); if (window.Toast) window.Toast.show('Đã duyệt!', 'success'); }
-      if (a === 'reject') { const r = prompt('Lý do từ chối:'); if (r !== null) { rejectPost(postId, r || 'Không đạt'); if (window.Toast) window.Toast.show('Đã từ chối', 'info'); } else return; }
-      if (a === 'publish') { if (window.Toast) window.Toast.show('Đang đăng...', 'info'); setTimeout(() => { markPublished(postId); if (window.Toast) window.Toast.show('🚀 Đã đăng!', 'success'); }, 1000); }
-      if (a === 'revise') { revertToDraft(postId); if (window.Toast) window.Toast.show('Đã mở lại để sửa', 'info'); }
+      if (a === 'submit') { await submitForReview(postId); if (window.Toast) window.Toast.show('Đã gửi duyệt!', 'success'); }
+      if (a === 'approve') { await approvePost(postId); if (window.Toast) window.Toast.show('Đã duyệt!', 'success'); }
+      if (a === 'reject') { const r = prompt('Lý do từ chối:'); if (r !== null) { await rejectPost(postId, r || 'Không đạt'); if (window.Toast) window.Toast.show('Đã từ chối', 'info'); } else return; }
+      if (a === 'magiclink') {
+          const l = window.location.origin + '/api/v1/approval/p/' + btoa(postId);
+          navigator.clipboard.writeText(l);
+          if (window.Toast) window.Toast.show('Đã copy Magic Link!', 'success');
+          return;
+      }
+      if (a === 'publish') { 
+          if (window.Toast) window.Toast.show('Đang xử lý...', 'info'); 
+          await markPublished(postId);
+          // Push to real Queue
+          const { addToQueue } = await import('../scheduler/scheduler-store.js');
+          try {
+              for (const pf of (post.platforms || ['facebook'])) {
+                  await addToQueue({ platform: pf, text: post.content, scheduledAt: new Date().toISOString() });
+              }
+              if (window.Toast) window.Toast.show('🚀 Đã đẩy vào Queue!', 'success');
+          } catch(e) {
+              if (window.Toast) window.Toast.show('❌ Lỗi Queue', 'error');
+          }
+      }
+      if (a === 'revise') { await revertToDraft(postId); if (window.Toast) window.Toast.show('Đã mở lại để sửa', 'info'); }
       closeDrawer(drawer, overlay);
     } catch (e) { if (window.Toast) window.Toast.show('❌ ' + e.message, 'error'); }
   }));
@@ -113,6 +132,7 @@ function _actions(post) {
   if (post.state === 'review') { btns.push(`<button class="btn btn-sm" style="background:var(--color-success);color:#fff" data-action="approve">✅ Duyệt</button>`); btns.push(`<button class="btn btn-sm" style="background:var(--color-error);color:#fff" data-action="reject">❌ Từ chối</button>`); }
   if (post.state === 'approved') btns.push(`<button class="btn btn-primary btn-sm" data-action="publish">🚀 Đăng ngay</button>`);
   if (post.state === 'rejected') btns.push(`<button class="btn btn-secondary btn-sm" data-action="revise">✏️ Sửa lại</button>`);
+  if (['draft', 'review'].includes(post.state)) btns.push(`<button class="btn btn-secondary btn-sm" data-action="magiclink">🔗 Magic Link</button>`);
   return btns.length ? btns.join('') : '<span style="font-size:var(--text-xs);color:var(--color-text-muted)">Không có hành động</span>';
 }
 

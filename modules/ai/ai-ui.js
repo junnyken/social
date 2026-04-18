@@ -154,11 +154,11 @@ function tabBrandVoice(el, rootContainer) {
     const previewText = el.querySelector('#bv-preview-text');
 
     try {
-      const { openaiApi } = await import('../api-client.js');
-      const res = await openaiApi.chat([
+      const { geminiApi } = await import('../api-client.js');
+      const res = await geminiApi.chat([
         { role: 'user', content: `Tạo 1 bài Facebook ngắn giới thiệu "${bv.name || 'thương hiệu'}" tone "${bv.tone}" emoji "${bv.emojiUsage}". Ngành: ${bv.industry || 'general'}.` }
       ], { max_tokens: 200 });
-      const text = res.choices?.message?.content || res.choices?.[0]?.message?.content || '';
+      const text = res.choices?.[0]?.message?.content || res.choices?.message?.content || '';
       preview.style.display = 'block';
       previewText.textContent = text;
     } catch {
@@ -297,8 +297,51 @@ function renderRPResults(el, results, platforms) {
     const d = results[p] || {};
     const len = (d.text||'').length;
     const over = len > (LIMITS[p]||9999);
-    return `<div class="rp-card"><div class="rp-card-hdr"><span>${ICONS[p]} ${p}</span><span class="char-ct ${over?'over':''}">${len}${LIMITS[p]?'/'+LIMITS[p]:''}</span></div><textarea class="field-input rp-out" rows="6" id="rp-o-${p}">${d.text||''}</textarea>${d.hashtags?.length?`<div class="rp-tags">${d.hashtags.map(h=>`<span class="tag-pill">${h}</span>`).join('')}</div>`:''}${d.tip?`<div class="rp-tip">💡 ${d.tip}</div>`:''}<div class="rp-card-actions"><button class="btn btn-secondary btn-sm" onclick="navigator.clipboard.writeText(document.getElementById('rp-o-${p}').value);this.textContent='✅ Copied!'">📋 Copy</button></div></div>`;
+    return `<div class="rp-card"><div class="rp-card-hdr"><span>${ICONS[p]} ${p}</span><span class="char-ct ${over?'over':''}">${len}${LIMITS[p]?'/'+LIMITS[p]:''}</span></div><textarea class="field-input rp-out" rows="6" id="rp-o-${p}">${d.text||''}</textarea>${d.hashtags?.length?`<div class="rp-tags">${d.hashtags.map(h=>`<span class="tag-pill">${h}</span>`).join('')}</div>`:''}${d.tip?`<div class="rp-tip">💡 ${d.tip}</div>`:''}<div class="rp-card-actions"><button class="btn btn-secondary btn-sm" onclick="navigator.clipboard.writeText(document.getElementById('rp-o-${p}').value);this.textContent='✅ Copied!'">📋 Copy</button> <button class="btn btn-primary btn-sm btn-publish-now" data-pf="${p}">📤 Đăng ngay</button> <button class="btn btn-secondary btn-sm btn-schedule" data-pf="${p}">📅 Lên lịch</button></div></div>`;
   }).join('');
+
+  attachQueueListeners(el);
+}
+
+function attachQueueListeners(container) {
+  container.querySelectorAll('.btn-publish-now').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const pf = btn.dataset.pf;
+      const text = container.querySelector(btn.dataset.targetId ? `#${btn.dataset.targetId}` : `#rp-o-${pf}`)?.value;
+      if (!text) return toast('Không có nội dung để đăng!', 'error');
+      
+      btn.disabled = true; btn.textContent = '⏳...';
+      try {
+        const { addToQueue } = await import('../scheduler/scheduler-store.js');
+        await addToQueue({ platform: pf, text, scheduledAt: new Date().toISOString() });
+        toast('✅ Đã gửi vào Queue để đăng ngay!', 'success');
+      } catch (e) {
+        toast('❌ Lỗi khi gửi vào Queue', 'error');
+      }
+      btn.disabled = false; btn.textContent = '📤 Đăng ngay';
+    });
+  });
+
+  container.querySelectorAll('.btn-schedule').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const pf = btn.dataset.pf;
+      const text = container.querySelector(btn.dataset.targetId ? `#${btn.dataset.targetId}` : `#rp-o-${pf}`)?.value;
+      if (!text) return toast('Không có nội dung để đăng!', 'error');
+
+      const dateStr = prompt('Nhập thời gian lên lịch (YYYY-MM-DD HH:mm):', new Date(Date.now() + 3600000).toISOString().slice(0, 16).replace('T', ' '));
+      if (!dateStr) return;
+
+      btn.disabled = true; btn.textContent = '⏳...';
+      try {
+        const { addToQueue } = await import('../scheduler/scheduler-store.js');
+        await addToQueue({ platform: pf, text, scheduledAt: new Date(dateStr).toISOString() });
+        toast('📅 Đã đưa vào danh sách chờ!', 'success');
+      } catch (e) {
+        toast('❌ Lỗi lên lịch', 'error');
+      }
+      btn.disabled = false; btn.textContent = '📅 Lên lịch';
+    });
+  });
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -538,8 +581,14 @@ function tabTrends(el) {
         ${content.hashtags?.length?`<div><strong>Hashtag:</strong> ${content.hashtags.join(' ')}</div>`:''}
         ${content.trendAngle?`<div><strong>Góc khai thác:</strong> ${content.trendAngle}</div>`:''}
       </div>
-      <div class="tpv-actions"><button class="btn btn-secondary btn-sm" onclick="navigator.clipboard.writeText(document.getElementById('trend-out').value);this.textContent='✅ Copied!'">📋 Copy</button></div>
+      <div class="tpv-actions">
+        <button class="btn btn-secondary btn-sm" onclick="navigator.clipboard.writeText(document.getElementById('trend-out').value);this.textContent='✅ Copied!'">📋 Copy</button>
+        <button class="btn btn-primary btn-sm btn-publish-now" data-pf="${platform}" data-target-id="trend-out">📤 Đăng ngay</button>
+        <button class="btn btn-secondary btn-sm btn-schedule" data-pf="${platform}" data-target-id="trend-out">📅 Lên lịch</button>
+      </div>
     </div>`;
+
+    attachQueueListeners(container);
   }
 }
 

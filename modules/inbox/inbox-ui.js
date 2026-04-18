@@ -1,10 +1,12 @@
 // ============================================================
-// Smart Inbox UI — Split view with filters + quick replies
+// Smart Inbox UI — 3-Column Split View + Thread + AI
 // ============================================================
 
 import { getMessages, markRead, markDone, getUnreadCount, onUpdate } from './inbox-store.js';
 import { startInboxPolling } from './inbox-fetcher.js';
 import { PLATFORMS } from '../platforms/platform-registry.js';
+import { getPages } from '../facebook/fb-auth.js';
+import { renderContactPanel } from './contact-panel.js';
 
 const PLATFORM_COLORS = { facebook: '#1877F2', instagram: '#E1306C', twitter: '#1DA1F2', linkedin: '#0077B5' };
 
@@ -58,68 +60,166 @@ export function renderInbox(container) {
     });
   }
 
-  function openMessage(msg) {
+  async function openMessage(msg) {
     activeMessage = msg;
     markRead(msg.id);
+    refreshList(); // Update active state
 
     const detail = container.querySelector('#inbox-detail');
+    const contactPnl = container.querySelector('#inbox-contact-panel');
+    
+    detail.innerHTML = `<div style="padding: 24px; text-align: center;">⏳ Đang tải chuỗi hội thoại...</div>`;
+    
+    // Fetch thread context
+    let thread = [];
+    let contactInfo = { displayName: msg.from, avatar: msg.authorPicture, tags: [] };
+    
+    try {
+      if (msg.contactId) {
+        const contactRes = await fetch(`/api/v1/contacts/${msg.contactId}`);
+        const contactData = await contactRes.json();
+        if (contactData.success) contactInfo = contactData.data;
+
+        const threadRes = await fetch(`/api/v1/inbox/thread/${msg.contactId}`);
+        const threadData = await threadRes.json();
+        if (threadData.success) thread = threadData.data;
+      }
+    } catch (e) { console.warn('Faile to load thread/contact', e); }
+
+    // Fallback if no thread loaded
+    if (thread.length === 0) thread = [msg];
+
+    // Render Contact Panel
+    renderContactPanel(contactInfo, contactPnl);
+
+    // Render Chat Thread
     const pColor = PLATFORM_COLORS[msg.platform] || '#999';
     const pName = PLATFORMS[msg.platform]?.name || msg.platform;
 
-    detail.innerHTML = `
-      <div class="message-detail" style="padding:var(--space-5)">
-        <div class="message-detail-header" style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:var(--space-4)">
-          <div class="message-sender" style="display:flex;gap:var(--space-3);align-items:center">
-            <div class="avatar-placeholder" style="width:42px;height:42px;border-radius:50%;background:${pColor};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1rem">${msg.from[0]}</div>
-            <div>
-              <div style="font-weight:600">${msg.from}</div>
-              <div style="font-size:var(--text-xs);color:${pColor};display:flex;align-items:center;gap:4px">${pName} · ${msg.type === 'dm' ? 'Tin nhắn' : 'Bình luận'}</div>
-            </div>
+    const threadHTML = thread.map(m => {
+      const isShop = m.fromId === getPages()?.[0]?.id || m.status === 'sent';
+      const bubbleColor = isShop ? '#E3F2FD' : 'var(--color-surface-hover,#f3f2ef)';
+      const align = isShop ? 'flex-end' : 'flex-start';
+      const textColor = isShop ? '#0D47A1' : 'inherit';
+      return `
+        <div style="display:flex; flex-direction:column; align-items:${align}; margin-bottom: 12px; width: 100%;">
+          <div style="font-size: 10px; color: var(--color-text-muted); margin-bottom: 4px;">${new Date(m.timestamp).toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'})}</div>
+          <div style="background:${bubbleColor}; color:${textColor}; padding: 10px 14px; border-radius: 12px; max-width: 80%; line-height: 1.5; font-size: 14px;">
+            ${m.text}
           </div>
-          <div style="font-size:var(--text-xs);color:var(--color-text-muted)">${new Date(msg.timestamp).toLocaleString('vi-VN')}</div>
+        </div>
+      `;
+    }).join('');
+
+    detail.innerHTML = `
+      <div class="message-detail" style="display:flex; flex-direction:column; height: 100%;">
+        <div class="message-detail-header" style="flex: 0 0 auto; padding: 16px; border-bottom: 1px solid var(--border); display:flex; justify-content: space-between; align-items: center;">
+           <div style="display:flex; gap: 12px; align-items: center;">
+             <div class="avatar-placeholder" style="width:40px;height:40px;border-radius:50%;background:${pColor};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px">${msg.from[0]}</div>
+             <div>
+               <div style="font-weight:600; font-size: 15px;">${msg.from}</div>
+               <div style="font-size: 12px; color: ${pColor};">${pName} · ${msg.type === 'dm' ? 'Tin nhắn' : 'Bình luận'}</div>
+             </div>
+           </div>
+           <div>
+             <button id="btn-mark-done" class="btn btn-secondary btn-sm">✓ Hoàn tất</button>
+           </div>
         </div>
 
-        <div style="background:var(--color-surface-hover,#f3f2ef);padding:var(--space-4);border-radius:var(--radius-lg);margin-bottom:var(--space-4);line-height:1.7;font-size:var(--text-sm)">${msg.text}</div>
+        <div style="flex: 1 1 auto; overflow-y: auto; padding: 16px; background: var(--bg);">
+          ${msg.parentPost ? `<div style="font-size:12px; color:var(--text-muted); margin-bottom: 16px; padding: 8px 12px; border-left:3px solid var(--border); background:var(--surface);">Trên bài: <em>${msg.parentPost.content}</em></div>` : ''}
+          ${threadHTML}
+        </div>
 
-        ${msg.parentPost ? `<div style="font-size:var(--text-xs);color:var(--color-text-muted);margin-bottom:var(--space-3);padding:var(--space-2) var(--space-3);border-left:3px solid var(--color-border);background:var(--color-surface)">Trên bài: <em>${msg.parentPost.content}</em></div>` : ''}
-
-        <div style="display:flex;flex-direction:column;gap:var(--space-3)">
-          <textarea id="reply-input" class="field-input" rows="3" placeholder="Viết phản hồi..." style="resize:vertical"></textarea>
-          <div class="quick-replies" style="display:flex;flex-wrap:wrap;gap:var(--space-1);align-items:center">
-            <span style="font-size:var(--text-xs);color:var(--color-text-muted);margin-right:4px">Nhanh:</span>
-            ${['Cảm ơn bạn!', 'Shop sẽ liên hệ lại ngay!', 'Sản phẩm còn hàng ạ 😊', 'Vui lòng để lại SĐT nhé!']
-              .map(t => `<button class="quick-reply-chip" data-text="${t}">${t}</button>`).join('')}
+        <div style="flex: 0 0 auto; padding: 16px; border-top: 1px solid var(--border); background: var(--surface);">
+          <div id="ai-suggestion-box" style="margin-bottom: 12px;">
+            <div style="display:flex; align-items:center; gap: 8px; font-size: 12px; color: var(--text-muted); margin-bottom: 8px;">
+               <span style="background: linear-gradient(90deg, #A855F7, #EC4899); -webkit-background-clip: text; color: transparent; font-weight: 700;">✨ AI Đề xuất</span>
+               <span id="ai-loading" style="display:none;">Đang phân tích...</span>
+            </div>
+            <div id="ai-replies-container" style="display:flex; flex-wrap: wrap; gap: 8px;">
+              <!-- AI replies will go here -->
+            </div>
           </div>
-          <div style="display:flex;gap:var(--space-2)">
-            <button id="btn-send-reply" class="btn btn-primary btn-sm">Gửi</button>
-            <button id="btn-mark-done" class="btn btn-secondary btn-sm">✓ Xong</button>
-            ${msg.postUrl !== '#' ? `<a href="${msg.postUrl}" target="_blank" class="btn btn-ghost btn-sm">Xem gốc</a>` : ''}
+
+          <div style="display:flex; flex-direction:column; gap: 8px;">
+            <textarea id="reply-input" class="field-input" rows="3" placeholder="Viết phản hồi..." style="resize:vertical; width: 100%;"></textarea>
+            <div style="display:flex; justify-content: flex-end; gap: 8px;">
+              <button id="btn-send-reply" class="btn btn-primary btn-sm">Gửi</button>
+            </div>
           </div>
         </div>
       </div>
     `;
 
-    detail.querySelectorAll('.quick-reply-chip').forEach(chip => {
-      chip.addEventListener('click', () => { detail.querySelector('#reply-input').value = chip.dataset.text; });
-    });
+    // Fetch AI Suggestions
+    const aiLoading = detail.querySelector('#ai-loading');
+    const aiContainer = detail.querySelector('#ai-replies-container');
+    const replyInput = detail.querySelector('#reply-input');
 
-    detail.querySelector('#btn-send-reply')?.addEventListener('click', async () => {
-      const text = detail.querySelector('#reply-input').value.trim();
-      if (!text) return;
-      if (window.Toast) window.Toast.show('Đang gửi...', 'info');
-      await new Promise(r => setTimeout(r, 600));
-      if (window.Toast) window.Toast.show('Đã gửi phản hồi!', 'success');
-      msg.status = 'replied';
-      detail.querySelector('#reply-input').value = '';
-    });
+    aiLoading.style.display = 'inline-block';
+    try {
+      const gRes = await fetch('/api/v1/ai/suggest-reply', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: msg.text, contactId: msg.contactId })
+      });
+      const gData = await gRes.json();
+      aiLoading.style.display = 'none';
+
+      if (gData.success && gData.data.replies) {
+        aiContainer.innerHTML = gData.data.replies.map(r => 
+          `<button class="quick-reply-chip" style="background:var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 6px 12px; font-size: 12px; cursor:pointer;" data-text="${r.replace(/"/g, '&quot;')}">${r}</button>`
+        ).join('');
+
+        aiContainer.querySelectorAll('.quick-reply-chip').forEach(chip => {
+          chip.addEventListener('click', () => { replyInput.value = chip.dataset.text; replyInput.focus(); });
+        });
+      }
+    } catch(e) {
+      aiLoading.style.display = 'none';
+      aiContainer.innerHTML = '<span style="color:var(--text-muted); font-size:12px;">Không thể tải AI.</span>';
+    }
 
     detail.querySelector('#btn-mark-done')?.addEventListener('click', () => {
       markDone(msg.id);
       if (window.Toast) window.Toast.show('Đã đánh dấu hoàn thành', 'success');
       refreshList();
+      detail.innerHTML = '<div class="inbox-empty-detail"><p>Đã hoàn thành</p></div>';
+      contactPnl.innerHTML = '';
     });
 
-    refreshList();
+    detail.querySelector('#btn-send-reply')?.addEventListener('click', async () => {
+      const text = replyInput.value.trim();
+      if (!text) return;
+      if (window.Toast) window.Toast.show('Đang gửi...', 'info');
+
+      if (msg.platform === 'facebook' && msg.id.startsWith('fb_c_')) {
+        try {
+          const pages = typeof getPages === 'function' ? getPages() : [];
+          if (pages.length > 0) {
+            const pageId = pages[0].id;
+            const commentId = msg.id.replace('fb_c_', '');
+            const res = await fetch(`/api/v1/fb/pages/${pageId}/comments/${commentId}/reply`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ message: text })
+            });
+            const data = await res.json();
+            if (!data.success) throw new Error(data.message || 'Error sending reply');
+          }
+        } catch (e) {
+          if (window.Toast) window.Toast.show('❌ Lỗi: ' + e.message, 'error');
+          return;
+        }
+      } else {
+        await new Promise(r => setTimeout(r, 600)); // mock delay for others
+      }
+
+      if (window.Toast) window.Toast.show('Đã gửi phản hồi!', 'success');
+      msg.status = 'replied';
+      replyInput.value = '';
+      openMessage(msg); // reload thread
+    });
   }
 
   // Filters
@@ -146,7 +246,7 @@ export function renderInbox(container) {
 
 function getInboxHTML() {
   return `
-    <div style="display:flex;flex-direction:column;gap:var(--space-4)">
+    <div style="display:flex;flex-direction:column;gap:var(--space-4); height: 100%;">
       <div style="display:flex;align-items:center;gap:var(--space-3)">
         <h2 style="margin:0">Smart Inbox</h2>
         <span class="unread-badge" id="inbox-unread-badge" style="background:var(--color-error);color:#fff;font-size:10px;padding:2px 8px;border-radius:var(--radius-full);font-weight:700">0</span>
@@ -168,13 +268,16 @@ function getInboxHTML() {
         </div>
       </div>
 
-      <div class="inbox-split">
-        <div class="inbox-list" id="inbox-message-list"></div>
-        <div class="inbox-detail" id="inbox-detail">
+      <div class="inbox-split" style="display: grid; grid-template-columns: 300px 1fr 300px; gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: var(--radius-lg); height: calc(100vh - 200px); overflow: hidden;">
+        <div class="inbox-list" id="inbox-message-list" style="background: var(--surface); height: 100%; overflow-y: auto;"></div>
+        <div class="inbox-detail" id="inbox-detail" style="background: var(--bg); height: 100%;">
           <div class="inbox-empty-detail">
-            <i data-lucide="message-square" width="40" height="40"></i>
+            <!-- <i data-lucide="message-square" width="40" height="40"></i> -->
             <p>Chọn tin nhắn để xem chi tiết</p>
           </div>
+        </div>
+        <div id="inbox-contact-panel" style="background: var(--surface); height: 100%; overflow-y: auto;">
+          <div style="padding: 24px; text-align: center; color: var(--text-muted);">CRM Panel Trống</div>
         </div>
       </div>
     </div>

@@ -1,6 +1,8 @@
 // ============================================================
-// Workflow Store — Post state machine + Comments
+// Workflow Store — Post state machine + Comments (API Backed)
 // ============================================================
+
+import { emit, onSocketEvent } from '../collab/socket-client.js';
 
 export const POST_STATES = {
   draft:     { id: 'draft',     label: 'Draft',     color: '#6B7280', icon: '📝', next: ['review'] },
@@ -11,87 +13,137 @@ export const POST_STATES = {
 };
 
 let posts = [];
-let comments = {};
 let listeners = [];
 
-export function createPost(data) {
-  const post = {
-    id: crypto.randomUUID(), state: 'draft',
-    createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
-    createdById: 'user-001', createdByName: 'Trieu Nguyen',
-    reviewedById: null, reviewedByName: null, reviewedAt: null,
-    rejectionReason: null, publishedAt: null, scheduledAt: null,
-    platforms: [], content: '', media: [],
-    ...data
-  };
-  posts.unshift(post);
-  notify();
-  return post;
+async function apiFetch(url, options = {}) {
+    const token = window.localStorage.getItem('token') || '';
+    const res = await fetch(url, {
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+            ...(options.headers || {})
+        }
+    });
+    return res.json();
+}
+
+export async function syncWorkflow() {
+    try {
+        const data = await apiFetch('/api/v1/workflow');
+        if (data.success) {
+            posts = data.data;
+            notify();
+        }
+    } catch (e) { console.error('Workflow sync error', e); }
+}
+
+onSocketEvent((event) => {
+    if (event.type === 'workflow_updated') {
+        // If it's an action from someone else, sync to get latest state
+        // In a real sophisticated app, we'd apply the patch locally instead of full sync
+        syncWorkflow();
+    }
+});
+
+export async function createPost(data) {
+    try {
+        const res = await apiFetch('/api/v1/workflow', {
+            method: 'POST',
+            body: JSON.stringify(data)
+        });
+        if (res.success) {
+            posts.unshift(res.data);
+            notify();
+            emit('workflow:stateChange', { action: 'create', postId: res.data.id, post: res.data });
+            return res.data;
+        }
+    } catch (e) {}
 }
 
 export function getPosts(filters = {}) {
   let r = [...posts];
   if (filters.state) r = r.filter(p => p.state === filters.state);
-  if (filters.platform) r = r.filter(p => p.platforms.includes(filters.platform));
+  if (filters.platform) r = r.filter(p => (p.platforms || []).includes(filters.platform));
   return r;
 }
 
 export function getPost(id) { return posts.find(p => p.id === id); }
 
-export function submitForReview(postId) { return _transition(postId, 'review'); }
-export function approvePost(postId) { return _transition(postId, 'approved'); }
-export function rejectPost(postId, reason) { return _transition(postId, 'rejected', reason); }
-export function markPublished(postId) { const p = posts.find(x => x.id === postId); if (p) { p.state = 'published'; p.publishedAt = new Date().toISOString(); p.updatedAt = new Date().toISOString(); notify(); } }
-export function revertToDraft(postId) { return _transition(postId, 'draft'); }
+export async function submitForReview(postId) { return _transition(postId, 'submit'); }
+export async function approvePost(postId) { return _transition(postId, 'approve'); }
+export async function rejectPost(postId, reason) { return _transition(postId, 'reject', reason); }
+export async function markPublished(postId) { 
+    const res = await _transition(postId, 'publish');
+    // NOTE: UI should also call addToQueue
+    return res;
+}
+export async function revertToDraft(postId) { return _transition(postId, 'revert'); }
 
-function _transition(postId, newState, reason = null) {
-  const post = posts.find(p => p.id === postId);
-  if (!post) return null;
-  const allowed = POST_STATES[post.state]?.next || [];
-  if (!allowed.includes(newState)) return null;
-
-  post.state = newState;
-  post.updatedAt = new Date().toISOString();
-  if (['review','approved','rejected'].includes(newState)) { post.reviewedAt = new Date().toISOString(); }
-  if (reason) post.rejectionReason = reason;
-
-  // In-app notification
-  try {
-    const { addNotification } = _getNotify();
-    const sc = POST_STATES[newState];
-    addNotification({ type: `post_${newState}`, title: `${sc.icon} Post ${sc.label}`, body: `"${(post.content || '').slice(0, 50)}..."`, postId });
-  } catch (e) { /* ignore if notify not loaded */ }
-
-  notify();
-  return post;
+async function _transition(postId, action, reason = null) {
+    try {
+        const res = await apiFetch(`/api/v1/workflow/${postId}`, {
+            method: 'PATCH',
+            body: JSON.stringify({ action, reason })
+        });
+        if (res.success) {
+            const idx = posts.findIndex(p => p.id === postId);
+            if (idx > -1) {
+                posts[idx] = res.data;
+                notify();
+                emit('workflow:stateChange', { action, postId, post: res.data });
+            }
+            return res.data;
+        }
+    } catch (e) {
+        console.error('Transition error', e); throw e;
+    }
 }
 
-function _getNotify() { return window._workflowNotify || {}; }
-
-export function addComment(postId, text) {
-  if (!comments[postId]) comments[postId] = [];
-  const c = { id: crypto.randomUUID(), postId, authorId: 'user-001', authorName: 'Trieu Nguyen', text, createdAt: new Date().toISOString() };
-  comments[postId].push(c);
-  notify();
-  return c;
+export async function addComment(postId, text) {
+    try {
+        const res = await apiFetch(`/api/v1/workflow/${postId}/comments`, {
+            method: 'POST',
+            body: JSON.stringify({ text })
+        });
+        if (res.success) {
+            const p = posts.find(x => x.id === postId);
+            if (p) {
+                p.comments = p.comments || [];
+                p.comments.push(res.data);
+                notify();
+                emit('workflow:stateChange', { action: 'comment', postId, comment: res.data });
+            }
+            return res.data;
+        }
+    } catch (e) {}
 }
-export function getComments(postId) { return comments[postId] || []; }
+
+export function getComments(postId) { 
+    const p = posts.find(x => x.id === postId);
+    return p ? (p.comments || []) : []; 
+}
 
 export function getWorkflowStats() {
-  return { draft: posts.filter(p => p.state === 'draft').length, review: posts.filter(p => p.state === 'review').length, approved: posts.filter(p => p.state === 'approved').length, rejected: posts.filter(p => p.state === 'rejected').length, published: posts.filter(p => p.state === 'published').length };
+  return { 
+      draft: posts.filter(p => p.state === 'draft').length, 
+      review: posts.filter(p => p.state === 'review').length, 
+      approved: posts.filter(p => p.state === 'approved').length, 
+      rejected: posts.filter(p => p.state === 'rejected').length, 
+      published: posts.filter(p => p.state === 'published').length 
+  };
 }
 
 export function seedWorkflowData() {
-  if (posts.length > 0) return;
-  const p1 = createPost({ content: '🔥 FLASH SALE 50% — Hôm nay duy nhất! Đừng bỏ lỡ cơ hội vàng...', platforms: ['facebook','instagram'] });
-  submitForReview(p1.id);
-  const p2 = createPost({ content: '📢 Ra mắt sản phẩm mới! Thiết kế hiện đại, chất liệu cao cấp — BST Xuân Hè 2026', platforms: ['facebook','linkedin'] });
-  submitForReview(p2.id);
-  createPost({ content: '💬 Bạn thích sản phẩm nào nhất? Comment cho mình biết nhé!', platforms: ['facebook'] });
-  const p4 = createPost({ content: '📸 Behind the scenes buổi chụp sản phẩm mới', platforms: ['instagram'] });
-  submitForReview(p4.id);
-  approvePost(p4.id);
+  // Deprecated - using Real API now
+  syncWorkflow();
 }
 
 export function onUpdate(fn) { listeners.push(fn); }
 function notify() { listeners.forEach(fn => fn()); }
+
+// Initial load
+if (typeof window !== 'undefined') {
+    syncWorkflow();
+    setInterval(syncWorkflow, 60000);
+}

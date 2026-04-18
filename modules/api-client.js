@@ -64,13 +64,34 @@ export const authApi = {
   refresh: () => apiFetch('/auth/refresh', { method: 'POST' })
 };
 
-// ── OpenAI ────────────────────────────────────────────────────
-export const openaiApi = {
+// ── Gemini AI ────────────────────────────────────────────────────
+export const geminiApi = {
   chat: (messages, opts = {}) =>
-    apiFetch('/proxy/openai/chat', {
+    apiFetch('/v1/ai/chat', {
       method: 'POST',
       body: JSON.stringify({ messages, ...opts })
-    })
+    }),
+  compose: (opts) =>
+    apiFetch('/v1/ai/compose', { method: 'POST', body: JSON.stringify(opts) }),
+  repurpose: (opts) =>
+    apiFetch('/v1/ai/repurpose', { method: 'POST', body: JSON.stringify(opts) }),
+
+  // Phase W — AI Powerhouse
+  bestTime: (platform = 'facebook', engagementData = []) =>
+    apiFetch('/v1/ai/best-time', { method: 'POST', body: JSON.stringify({ platform, engagementData }) }),
+  hashtags: (content, platform = 'facebook') =>
+    apiFetch('/v1/ai/hashtags', { method: 'POST', body: JSON.stringify({ content, platform }) }),
+  classify: (message) =>
+    apiFetch('/v1/ai/classify', { method: 'POST', body: JSON.stringify({ message }) }),
+  autoReply: (message, conversationHistory = []) =>
+    apiFetch('/v1/ai/auto-reply', { method: 'POST', body: JSON.stringify({ message, conversationHistory }) }),
+  predict: (content, platform = 'facebook') =>
+    apiFetch('/v1/ai/predict', { method: 'POST', body: JSON.stringify({ content, platform }) }),
+  report: (analyticsData = {}, period = '7 ngày', brandName = 'SocialHub') =>
+    apiFetch('/v1/ai/report', { method: 'POST', body: JSON.stringify({ analyticsData, period, brandName }) }),
+  getBrandVoice: () => apiFetch('/v1/ai/brand-voice'),
+  saveBrandVoice: (data) =>
+    apiFetch('/v1/ai/brand-voice', { method: 'PUT', body: JSON.stringify(data) }),
 };
 
 // ── Facebook ──────────────────────────────────────────────────

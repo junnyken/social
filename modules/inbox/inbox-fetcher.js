@@ -34,10 +34,31 @@ async function fetchAll(onNewMessages) {
   if (totalNew > 0) onNewMessages?.(totalNew);
 }
 
+import { getPages } from '../facebook/fb-auth.js';
+
 async function fetchPlatformMessages(platformId) {
   const conn = getConnected(platformId);
-  if (!conn) return generateMockMessages(platformId, 1);
-  // Real API fetch would go here
+  // Real API fetch for facebook
+  if (platformId === 'facebook') {
+    try {
+      const pages = typeof getPages === 'function' ? getPages() : [];
+      if (pages.length > 0) {
+        // First sync
+        await fetch(`/api/v1/inbox/sync`, { method: 'POST' });
+        // Then get all messages
+        const res = await fetch(`/api/v1/inbox/messages?platform=facebook`);
+        const json = await res.json();
+        if (json.success) {
+          return json.data; // This returns all messages, store needs to distinct them
+        }
+      }
+    } catch (e) {
+      console.warn('[inbox-fetcher] facebook sync error:', e);
+    }
+  }
+
+  // Fallback / Mock
+  if (!conn && platformId !== 'facebook') return generateMockMessages(platformId, 1);
   return generateMockMessages(platformId, 1 + Math.floor(Math.random() * 2));
 }
 

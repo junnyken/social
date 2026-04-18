@@ -1,38 +1,104 @@
 // ============================================================
-// Library Store — Media + Caption Templates
+// Library Store — Media + Caption Templates (API Backed)
 // ============================================================
 
 let mediaItems = [];
 let templates = [];
 let listeners = [];
 
-// ── Media ──
-export function addMedia(item) {
-  const media = { id: crypto.randomUUID(), uploadedAt: new Date().toISOString(), usageCount: 0, tags: [], ...item };
-  mediaItems.unshift(media);
-  notify();
-  return media;
+async function apiFetch(url, options = {}) {
+    const token = window.localStorage.getItem('token') || '';
+    const res = await fetch(url, {
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+            ...(options.headers || {})
+        }
+    });
+    return res.json();
 }
-export function removeMedia(id) { mediaItems = mediaItems.filter(m => m.id !== id); notify(); }
-export function updateMediaTags(id, tags) { const m = mediaItems.find(x => x.id === id); if (m) { m.tags = tags; notify(); } }
-export function incrementUsage(id) { const m = mediaItems.find(x => x.id === id); if (m) m.usageCount++; }
+
+export async function syncLibrary() {
+    try {
+        const data = await apiFetch('/api/v1/library');
+        if (data.success) {
+            mediaItems = data.data.mediaItems || [];
+            templates = data.data.templates || [];
+            notify();
+        }
+    } catch (e) { console.error('Library sync error', e); }
+}
+
+// ── Media ──
+export async function addMedia(item) {
+    try {
+        const res = await apiFetch('/api/v1/library/media', {
+            method: 'POST',
+            body: JSON.stringify(item)
+        });
+        if (res.success) {
+            await syncLibrary();
+            return res.data;
+        }
+    } catch (e) {}
+}
+
+export async function removeMedia(id) {
+    try {
+        const res = await apiFetch(`/api/v1/library/media/${id}`, { method: 'DELETE' });
+        if (res.success) {
+            await syncLibrary();
+        }
+    } catch (e) {}
+}
+
+export async function updateMediaTags(id, tags) {
+    try {
+        const res = await apiFetch(`/api/v1/library/media/${id}`, {
+            method: 'PATCH',
+            body: JSON.stringify({ tags })
+        });
+        if (res.success) {
+            await syncLibrary();
+        }
+    } catch (e) {}
+}
+
+export async function incrementUsage(id) {
+    const m = mediaItems.find(x => x.id === id);
+    if (!m) return;
+    try {
+        await apiFetch(`/api/v1/library/media/${id}`, {
+            method: 'PATCH',
+            body: JSON.stringify({ usageCount: m.usageCount + 1 })
+        });
+        await syncLibrary();
+    } catch (e) {}
+}
 
 export function getMedia(filters = {}) {
   let r = [...mediaItems];
   if (filters.type) r = r.filter(m => m.type === filters.type);
-  if (filters.tag) r = r.filter(m => m.tags.includes(filters.tag));
-  if (filters.search) { const q = filters.search.toLowerCase(); r = r.filter(m => m.name.toLowerCase().includes(q) || m.tags.some(t => t.toLowerCase().includes(q))); }
+  if (filters.tag) r = r.filter(m => (m.tags||[]).includes(filters.tag));
+  if (filters.search) { const q = filters.search.toLowerCase(); r = r.filter(m => m.name.toLowerCase().includes(q) || (m.tags||[]).some(t => t.toLowerCase().includes(q))); }
   return r;
 }
 
-export function getAllTags() { const s = new Set(); mediaItems.forEach(m => m.tags.forEach(t => s.add(t))); return [...s].sort(); }
+export function getAllTags() { const s = new Set(); mediaItems.forEach(m => (m.tags||[]).forEach(t => s.add(t))); return [...s].sort(); }
 
 // ── Templates ──
-export function addTemplate(data) {
-  const t = { id: crypto.randomUUID(), createdAt: new Date().toISOString(), usageCount: 0, platform: 'all', category: 'general', ...data };
-  templates.unshift(t);
-  notify();
-  return t;
+export async function addTemplate(data) {
+    try {
+        const res = await apiFetch('/api/v1/library/templates', {
+            method: 'POST',
+            body: JSON.stringify(data)
+        });
+        if (res.success) {
+            await syncLibrary();
+            return res.data;
+        }
+    } catch (e) {}
 }
 
 export function getTemplates(filters = {}) {
@@ -46,24 +112,30 @@ export function getTemplates(filters = {}) {
 export function useTemplate(id, vars = {}) {
   const t = templates.find(x => x.id === id);
   if (!t) return null;
+  // Note: Local update for fast response, would usually send a usage record or patch usageCount.
   t.usageCount++;
   let c = t.content;
   Object.entries(vars).forEach(([k, v]) => { c = c.replaceAll(`{{${k}}}`, v); });
   return c;
 }
 
-export function removeTemplate(id) { templates = templates.filter(t => t.id !== id); notify(); }
+export async function removeTemplate(id) {
+    try {
+        const res = await apiFetch(`/api/v1/library/templates/${id}`, { method: 'DELETE' });
+        if (res.success) {
+            await syncLibrary();
+        }
+    } catch (e) {}
+}
 
 export function seedDefaultTemplates() {
-  if (templates.length > 0) return;
-  [
-    { title: '🔥 Flash Sale', category: 'promotion', platform: 'all', content: '🔥 FLASH SALE {{discount}}% OFF!\n⏰ Chỉ còn {{hours}} giờ!\n🛍️ {{product}} - Giá từ {{price}}\n👉 Order: {{link}}\n#sale #{{brand}}', variables: ['discount','hours','product','price','link','brand'] },
-    { title: '💬 Engagement', category: 'engagement', platform: 'facebook', content: 'Bạn thích {{topic}} như thế nào? 🤔\nComment chia sẻ nhé!\nTag bạn bè cùng trả lời 👇\n#{{brand}}', variables: ['topic','brand'] },
-    { title: '📢 Product Launch', category: 'announcement', platform: 'all', content: '🎉 Ra mắt {{product_name}}!\n{{description}}\n✨ Nổi bật:\n• {{feature_1}}\n• {{feature_2}}\n• {{feature_3}}\n🛒 Đặt hàng: {{link}}\n#{{brand}} #launch', variables: ['product_name','description','feature_1','feature_2','feature_3','link','brand'] },
-    { title: '🙏 Thank You', category: 'engagement', platform: 'all', content: 'Cảm ơn {{milestone}} khách hàng ❤️\nMã giảm {{discount}}%: {{code}}\nHạn: {{expiry}}\n#{{brand}}', variables: ['milestone','discount','code','expiry','brand'] },
-    { title: '📸 IG Reels', category: 'engagement', platform: 'instagram', content: '{{caption}} ✨\nSave để xem lại 📌\nFollow {{brand}} 🔔\n{{hashtags}}', variables: ['caption','brand','hashtags'] }
-  ].forEach(t => addTemplate(t));
+  // Deprecated - Seeded by backend GET
 }
 
 export function onUpdate(fn) { listeners.push(fn); }
 function notify() { listeners.forEach(fn => fn()); }
+
+// Initial load
+if (typeof window !== 'undefined') {
+    syncLibrary();
+}

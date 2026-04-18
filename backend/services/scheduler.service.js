@@ -1,7 +1,8 @@
 const cron = require('node-cron');
 const config = require('../config');
 const dataService = require('./data.service');
-const fbGraph = require('./fb-graph.service');
+const fbGraphV2 = require('./fb-graph-v2.service');
+const cryptoSvc = require('./crypto.service');
 const spinner = require('./spinner.service');
 const logger = require('./logger.service');
 const delaySvc = require('./delay.service');
@@ -67,6 +68,27 @@ class SchedulerService {
         // Process ONLY 1 job per tick to prevent spamming
         const job = pending[0];
         
+        // Check Rate Limit Guard
+        const account = await dataService.getById('accounts', job.accountId);
+        if (!account) {
+            console.warn(`[Scheduler] Account ${job.accountId} not found. Skipping job.`);
+            return;
+        }
+
+        const todayKey = new Date().toISOString().slice(0, 10);
+        const todayPosts = account.dailyPosts?.[todayKey] || account.postsToday || 0;
+
+        if (todayPosts >= (config.rateLimits.dailyPostsPerAccount || 20)) {
+            console.log(`[Scheduler] Rate limit reached for ${job.accountId}: ${todayPosts} today. Skipping.`);
+            return;
+        }
+
+        const page = (account.pages || []).find(p => p.id === job.target.id);
+        if (!page) {
+             console.warn(`[Scheduler] Page ${job.target.id} not found on account ${job.accountId}.`);
+             return;
+        }
+
         try {
             // Update status to processing
             await dataService.update('schedules', job.id, { status: 'processing' });
@@ -77,16 +99,23 @@ class SchedulerService {
             // Artificial delay to look human
             await delaySvc.sleepForType('pagePost');
             
-            // Send to FB
-            // In Phase 2 this should fetch the actual token from accounts DB
-            const result = await fbGraph.publishPost(job.target.id, finalContent, 'mock', job.target.type, job.images);
+            // Send to FB using real token
+            const pageToken = page.access_token;
+            const result = await fbGraphV2.publishPagePost(pageToken, job.target.id, finalContent, job.images?.[0]);
             
             if (result.success) {
+                // Update schedule status
                 await dataService.update('schedules', job.id, { 
                     status: 'done', 
                     publishedId: result.id,
                     processedAt: new Date().toISOString()
                 });
+
+                // Update account daily usage counter
+                await dataService.update('accounts', job.accountId, {
+                    [`dailyPosts.${todayKey}`]: todayPosts + 1
+                });
+
                 await logger.log(job.accountId, job.target.name || job.target.id, finalContent, 'success', this.app);
             } else {
                 const newRetries = (job.retries || 0) + 1;

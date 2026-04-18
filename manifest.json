@@ -1,0 +1,21 @@
+{
+    "name": "SocialHub — Social Media Manager",
+    "short_name": "SocialHub",
+    "description": "Nền tảng quản lý mạng xã hội toàn diện: Đăng bài, AI viết content, Lên lịch, Analytics, CRM & Team Collaboration",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#0f172a",
+    "theme_color": "#3b82f6",
+    "orientation": "any",
+    "scope": "/",
+    "icons": [
+        {
+            "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚀</text></svg>",
+            "sizes": "any",
+            "type": "image/svg+xml"
+        }
+    ],
+    "categories": ["social", "productivity", "business"],
+    "lang": "vi",
+    "dir": "ltr"
+}

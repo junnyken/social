@@ -1,0 +1,22 @@
+# render.yaml — Render.com Blueprint
+services:
+  - type: web
+    name: socialhub
+    runtime: node
+    buildCommand: cd backend && npm install
+    startCommand: cd backend && node server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: FB_APP_ID
+        sync: false  # Set manually in Render dashboard
+      - key: FB_APP_SECRET
+        sync: false
+      - key: FB_REDIRECT_URI
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: ENCRYPTION_KEY
+        sync: false
+      - key: ALLOWED_ORIGINS
+        sync: false

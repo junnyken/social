@@ -2,17 +2,6 @@
 // Facebook OAuth + Token Management
 // ============================================================
 
-const FB_CONFIG = {
-  appId:       'YOUR_APP_ID',         // Lấy từ developers.facebook.com
-  apiVersion:  'v21.0',
-  scopes: [
-    'pages_manage_posts',
-    'pages_read_engagement',
-    'pages_show_list'
-  ].join(','),
-  redirectUri: window.location.origin + '/auth/facebook/callback'
-};
-
 // State lưu in-memory (không localStorage - sandbox safe)
 let _state = {
   userToken:  null,
@@ -22,15 +11,18 @@ let _state = {
 
 // ── Login ────────────────────────────────────────────────────
 
-export function getLoginURL() {
-  const params = new URLSearchParams({
-    client_id:     FB_CONFIG.appId,
-    redirect_uri:  FB_CONFIG.redirectUri,
-    scope:         FB_CONFIG.scopes,
-    response_type: 'token',   // Implicit flow cho client-side
-    state:         crypto.randomUUID()
-  });
-  return `https://www.facebook.com/dialog/oauth?${params}`;
+export async function getLoginURL() {
+  try {
+    const res = await fetch('/api/v1/auth/login-url');
+    const data = await res.json();
+    if (data.success && data.loginUrl) {
+      return data.loginUrl;
+    }
+    throw new Error('Failed to get login URL');
+  } catch (error) {
+    console.error('Error fetching login URL:', error);
+    return null;
+  }
 }
 
 // Xử lý callback sau OAuth (gọi từ redirect URI page)

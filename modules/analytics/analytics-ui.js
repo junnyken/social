@@ -9,6 +9,7 @@ import {
   getCompetitors, addCompetitor, removeCompetitor,
   INDUSTRY_BENCHMARKS, fetchAnalyticsAPI
 } from './analytics-store.js';
+import { getPages } from '../facebook/fb-auth.js';
 
 import {
   createReachChart, createFollowerGrowthChart, createEngagementChart,
@@ -93,11 +94,17 @@ async function renderAnalyticsTab(container, tab) {
 async function renderOverview(container) {
   let kpis = getKPIs(activePlatform);
   const days = getDays();
-  const realData = await getRealKPIs(activeRange);
+  const pages = typeof getPages === 'function' ? getPages() : [];
+  const pageId = pages.length > 0 ? pages[0].id : null;
+  
+  const realData = await getRealKPIs(pageId, activeRange);
   
   if (realData) {
-      kpis.postsCount = realData.totalPosts;
-      kpis.engagementRate = realData.successRate; // repurposing mock ER to successRate for visualization
+      kpis.followers = realData.followers || kpis.followers;
+      kpis.followersGrowth = realData.followersDelta || kpis.followersGrowth;
+      kpis.reach = realData.reach || kpis.reach;
+      kpis.impressions = realData.impressions || kpis.impressions;
+      kpis.engagementRate = realData.engagement || kpis.engagementRate;
   }
 
   container.innerHTML = `

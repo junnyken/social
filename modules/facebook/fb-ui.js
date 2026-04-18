@@ -5,6 +5,7 @@
 import { getLoginURL, handleCallback, getPages, isAuthenticated, logout } from './fb-auth.js';
 import { addToQueue, getQueue, removeFromQueue, pauseQueue, resumeQueue, getStatus, startScheduler, stopScheduler } from './fb-scheduler.js';
 import { previewSpins } from './fb-spinner.js';
+import { getPagePosts } from './fb-api.js';
 
 // ── Bootstrap: Gọi 1 lần khi social tool load ────────────────
 
@@ -68,8 +69,13 @@ function renderConnectPrompt(container) {
     </div>
   `;
 
-  document.querySelector('#fb-connect-btn').addEventListener('click', () => {
-    window.location.href = getLoginURL();
+  document.querySelector('#fb-connect-btn').addEventListener('click', async () => {
+    const url = await getLoginURL();
+    if (url) {
+        window.location.href = url;
+    } else {
+        if (window.Toast) window.Toast.show('Lỗi khi lấy link đăng nhập', 'error');
+    }
   });
 }
 
@@ -140,11 +146,27 @@ function renderDashboard(container) {
         <div id="fb-queue-list" style="display:flex;flex-direction:column;gap:var(--space-2,8px);max-height:400px;overflow-y:auto"></div>
       </div>
 
+      <!-- Recent Posts -->
+      <div class="fb-recent-posts card" style="padding:var(--space-4,16px)">
+        <div style="display:flex;align-items:center;gap:var(--space-2,8px);margin-bottom:var(--space-3,12px)">
+          <h4 style="margin:0;font-weight:600">Bài đã đăng gần đây</h4>
+          <span class="badge badge-info" id="fb-recent-count">0</span>
+          <button id="fb-refresh-recent-btn" class="btn btn-ghost btn-sm" style="margin-left:auto;padding:4px 8px" title="Làm mới"><i data-lucide="refresh-cw" width="14" height="14"></i> Cập nhật</button>
+        </div>
+        <div id="fb-recent-list" style="display:flex;flex-direction:column;gap:var(--space-3,12px);max-height:500px;overflow-y:auto">
+           <div style="text-align:center;padding:20px;color:var(--color-text-muted)"><span class="spinner"></span> Đang tải...</div>
+        </div>
+      </div>
+
     </div>
   `;
 
   bindEvents(container);
   refreshQueueUI();
+  
+  // Also load recent posts
+  if (window.refreshIcons) window.refreshIcons();
+  setTimeout(() => loadRecentPosts(container, pages), 100);
 }
 
 // ── Event Bindings ────────────────────────────────────────────
@@ -314,3 +336,60 @@ function showToast(msg, type = 'info') {
   setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.3s'; }, 3500);
   setTimeout(() => toast.remove(), 4000);
 }
+
+// ── Recent Posts Fetcher ──────────────────────────────────────
+async function loadRecentPosts(container, pages) {
+  const listEl = container.querySelector('#fb-recent-list');
+  const countEl = container.querySelector('#fb-recent-count');
+  const refreshBtn = container.querySelector('#fb-refresh-recent-btn');
+  const pageId = container.querySelector('#fb-page-select').value || (pages.length ? pages[0].id : null);
+  
+  if (!pageId) {
+    if (listEl) listEl.innerHTML = `<p style="text-align:center;color:var(--color-text-muted,#888);font-size:0.85rem">Chưa có Page nào. Vui lòng kết nối.</p>`;
+    return;
+  }
+
+  if (refreshBtn) {
+    refreshBtn.onclick = () => {
+      if (listEl) listEl.innerHTML = `<div style="text-align:center;padding:20px;color:var(--color-text-muted)"><span class="spinner"></span> Đang tải...</div>`;
+      loadRecentPosts(container, pages);
+    };
+  }
+
+  try {
+    const res = await getPagePosts(pageId, 15);
+    const posts = res && res.data ? res.data : [];
+    
+    if (countEl) countEl.textContent = posts.length;
+
+    if (posts.length === 0) {
+      if (listEl) listEl.innerHTML = `<p style="text-align:center;color:var(--color-text-muted,#888);font-size:0.85rem;padding:var(--space-4,16px)">Chưa có bài nào được kéo về từ Page.</p>`;
+      return;
+    }
+
+    if (listEl) {
+      listEl.innerHTML = posts.map(p => `
+        <div class="recent-post-card" style="padding:var(--space-3,12px);border:1px solid var(--color-border,#e5e5e5);border-radius:var(--radius-md,8px);background:var(--color-surface,#fff)">
+          <div style="display:flex;gap:var(--space-3,12px)">
+            ${p.full_picture ? `<img src="${p.full_picture}" style="width:80px;height:80px;object-fit:cover;border-radius:4px" />` : '<div style="width:80px;height:80px;background:#f0f2f5;border-radius:4px;display:flex;align-items:center;justify-content:center"><i data-lucide="image" style="color:#bcc0c4"></i></div>'}
+            <div style="flex:1;min-width:0">
+              <div style="font-size:0.8rem;color:var(--color-text-muted,#888);margin-bottom:var(--space-1,4px)">${new Date(p.created_time || Date.now()).toLocaleString('vi-VN')}</div>
+              <div style="font-size:0.9rem;line-height:1.4">${(p.message || '').slice(0, 150)}${(p.message || '').length > 150 ? '...' : ''}</div>
+              
+              <div style="display:flex;gap:var(--space-3,12px);margin-top:var(--space-2,8px);color:var(--color-text-muted,#65676B);font-size:0.85rem">
+                <span title="Reactions"><i data-lucide="thumbs-up" width="14" height="14"></i> ${p.reactions?.summary?.total_count || 0}</span>
+                <span title="Comments"><i data-lucide="message-circle" width="14" height="14"></i> ${p.comments?.summary?.total_count || 0}</span>
+                <span title="Shares"><i data-lucide="share-2" width="14" height="14"></i> ${p.shares?.count || 0}</span>
+                ${p.permalink_url ? `<a href="${p.permalink_url}" target="_blank" style="margin-left:auto;color:var(--color-primary,#1877F2);text-decoration:none">Xem trên FB</a>` : ''}
+              </div>
+            </div>
+          </div>
+        </div>
+      `).join('');
+      if (window.refreshIcons) window.refreshIcons();
+    }
+  } catch (error) {
+    if (listEl) listEl.innerHTML = `<p style="text-align:center;color:var(--color-error,#ef4444);font-size:0.85rem">Lỗi khi kéo data thật từ Facebook: ${error.message}</p>`;
+  }
+}
+

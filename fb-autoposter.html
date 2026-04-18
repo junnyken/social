@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="theme-color" content="#1877F2">
+    <link rel="manifest" href="/manifest.json">
     <meta name="description" content="FB AutoPoster - Advanced Social Media Management Tool">
     <title>FB AutoPoster | Dashboard</title>
     <script>
@@ -3047,22 +3048,25 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 
     <nav class="nav-menu" id="nav-menu">
         <a href="#/dashboard" class="nav-item active" data-path="/dashboard" aria-current="page">
-            <i data-lucide="layout-dashboard" width="20" height="20"></i><span class="nav-label">Dashboard</span>
+            <i data-lucide="layout-dashboard" width="20" height="20"></i><span class="nav-label" data-i18n="dashboard">Dashboard</span>
         </a>
         <a href="#/scheduler" class="nav-item" data-path="/scheduler">
-            <i data-lucide="calendar-clock" width="20" height="20"></i><span class="nav-label">Scheduler</span>
+            <i data-lucide="calendar-clock" width="20" height="20"></i><span class="nav-label" data-i18n="scheduler">Scheduler</span>
         </a>
         <a href="#/editor" class="nav-item" data-path="/editor">
-            <i data-lucide="pen-line" width="20" height="20"></i><span class="nav-label">Editor</span>
+            <i data-lucide="pen-line" width="20" height="20"></i><span class="nav-label" data-i18n="editor">Editor</span>
         </a>
         <a href="#/accounts" class="nav-item" data-path="/accounts">
-            <i data-lucide="users" width="20" height="20"></i><span class="nav-label">Accounts</span>
+            <i data-lucide="users" width="20" height="20"></i><span class="nav-label" data-i18n="accounts">Accounts</span>
         </a>
         <a href="#/logs" class="nav-item" data-path="/logs">
-            <i data-lucide="scroll-text" width="20" height="20"></i><span class="nav-label">Logs</span>
+            <i data-lucide="scroll-text" width="20" height="20"></i><span class="nav-label" data-i18n="logs">Logs</span>
         </a>
         <a href="#/settings" class="nav-item" data-path="/settings">
-            <i data-lucide="settings" width="20" height="20"></i><span class="nav-label">Settings</span>
+            <i data-lucide="settings" width="20" height="20"></i><span class="nav-label" data-i18n="settings">Settings</span>
+        </a>
+        <a href="#/audit" class="nav-item" data-path="/audit">
+            <i data-lucide="shield-check" width="20" height="20"></i><span class="nav-label" data-i18n="audit">Audit Logs</span>
         </a>
         <div style="height:1px;background:var(--color-border);margin:var(--space-3) var(--space-4)"></div>
         <a href="#/facebook" class="nav-item" data-path="/facebook">
@@ -3073,29 +3077,32 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
             <i data-lucide="edit-3" width="20" height="20"></i><span class="nav-label">Đăng bài</span>
         </a>
         <a href="#/analytics" class="nav-item" data-path="/analytics">
-            <i data-lucide="bar-chart-2" width="20" height="20"></i><span class="nav-label">Analytics</span>
+            <i data-lucide="bar-chart-2" width="20" height="20"></i><span class="nav-label" data-i18n="analytics">Analytics</span>
+        </a>
+        <a href="#/analytics-pro" class="nav-item" data-path="/analytics-pro">
+            <i data-lucide="pie-chart" width="20" height="20"></i><span class="nav-label">Analytics PRO</span>
         </a>
         <a href="#/inbox" class="nav-item" data-path="/inbox">
             <i data-lucide="inbox" width="20" height="20"></i><span class="nav-label">Inbox</span>
             <span data-nav-inbox-badge class="nav-badge" style="display:none"></span>
         </a>
         <a href="#/ai" class="nav-item" data-path="/ai">
-            <i data-lucide="sparkles" width="20" height="20"></i><span class="nav-label">AI Assistant</span>
+            <i data-lucide="sparkles" width="20" height="20"></i><span class="nav-label" data-i18n="ai_assistant">AI Assistant</span>
         </a>
         <a href="#/listening" class="nav-item" data-path="/listening">
-            <i data-lucide="radio" width="20" height="20"></i><span class="nav-label">Listening</span>
+            <i data-lucide="radio" width="20" height="20"></i><span class="nav-label" data-i18n="listening">Listening</span>
         </a>
         <a href="#/calendar" class="nav-item" data-path="/calendar">
             <i data-lucide="calendar" width="20" height="20"></i><span class="nav-label">Calendar</span>
         </a>
         <a href="#/library" class="nav-item" data-path="/library">
-            <i data-lucide="folder-open" width="20" height="20"></i><span class="nav-label">Library</span>
+            <i data-lucide="folder-open" width="20" height="20"></i><span class="nav-label" data-i18n="library">Library</span>
         </a>
         <a href="#/workflow" class="nav-item" data-path="/workflow">
-            <i data-lucide="git-branch" width="20" height="20"></i><span class="nav-label">Workflow</span>
+            <i data-lucide="git-branch" width="20" height="20"></i><span class="nav-label" data-i18n="workflow">Workflow</span>
         </a>
         <a href="#/team" class="nav-item" data-path="/team">
-            <i data-lucide="users" width="20" height="20"></i><span class="nav-label">Team</span>
+            <i data-lucide="users" width="20" height="20"></i><span class="nav-label" data-i18n="team">Team</span>
         </a>
         <a href="#/integrations" class="nav-item" data-path="/integrations">
             <i data-lucide="link-2" width="20" height="20"></i><span class="nav-label">Integrations</span>
@@ -3105,6 +3112,21 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
         </a>
         <a href="#/ai-brain" class="nav-item" data-path="/ai-brain">
             <i data-lucide="brain" width="20" height="20"></i><span class="nav-label">AI Brain</span>
+        </a>
+        <a href="#/ab-test" class="nav-item" data-path="/ab-test">
+            <i data-lucide="split" width="20" height="20"></i><span class="nav-label">A/B Test</span>
+        </a>
+        <a href="#/bulk-publish" class="nav-item" data-path="/bulk-publish">
+            <i data-lucide="send" width="20" height="20"></i><span class="nav-label">Bulk Publish</span>
+        </a>
+        <a href="#/evergreen" class="nav-item" data-path="/evergreen">
+            <i data-lucide="refresh-cw" width="20" height="20"></i><span class="nav-label">Evergreen</span>
+        </a>
+        <a href="#/reports" class="nav-item" data-path="/reports">
+            <i data-lucide="file-text" width="20" height="20"></i><span class="nav-label" data-i18n="reports">Reports</span>
+        </a>
+        <a href="#/link-in-bio" class="nav-item" data-path="/link-in-bio">
+            <i data-lucide="link-2" width="20" height="20"></i><span class="nav-label">Link-in-Bio</span>
         </a>
     </nav>
 
@@ -3127,6 +3149,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
             <h1 id="page-title">Dashboard</h1>
         </div>
         <div class="header-right">
+            <button class="icon-btn" id="lang-toggle" aria-label="Toggle language" title="Language" style="width:auto;padding:0 8px;font-size:13px;font-weight:600;min-width:32px;">VI</button>
             <button class="icon-btn" id="theme-toggle" aria-label="Toggle dark mode" title="Toggle theme">
                 <i data-lucide="moon" width="20" height="20" id="theme-icon"></i>
             </button>

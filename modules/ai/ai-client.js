@@ -2,7 +2,7 @@
 // AI API Wrapper using Backend API via api-client.js
 // ============================================================
 
-import { openaiApi } from '../api-client.js';
+import { geminiApi } from '../api-client.js';
 
 export async function generateCaption(config) {
   const {
@@ -22,13 +22,13 @@ export async function generateCaption(config) {
     Trả về JSON: { "caption": "...", "hashtags": ["tag1","tag2"], "callToAction": "..." }
   `.trim();
 
-  // Gọi qua backend proxy — API key an toàn
-  const data = await openaiApi.chat([
+  // Gọi qua backend thay thế OpenAI
+  const data = await geminiApi.chat([
     { role: 'system',  content: systemPrompt },
     { role: 'user',    content: userPrompt }
   ], { max_tokens: 600, temperature: 0.8 });
 
-  const content = data.choices?.message?.content || '';
+  const content = data.choices?.[0]?.message?.content || data.choices?.message?.content || '';
   const match = content.match(/\{[\s\S]*\}/);
   if (!match) throw new Error('AI không trả về JSON hợp lệ');
   return JSON.parse(match[0]);
