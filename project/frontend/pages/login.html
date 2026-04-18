@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="vi" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SocialHub - Login</title>
+  
+  <style>
+    :root {
+      --color-primary: #01696f;
+      --color-surface: #f9f8f5;
+      --color-text: #28251d;
+      --color-error: #a12c7b;
+      --color-success: #437a22;
+      --radius-md: 0.5rem;
+      --space-4: 1rem;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--color-surface);
+      display: flex;
+      min-height: 100vh;
+    }
+
+    .auth-container {
+      width: 100%;
+      max-width: 900px;
+      margin: auto;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0;
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.1);
+    }
+
+    .auth-hero {
+      background: linear-gradient(135deg, var(--color-primary), #0a8f99);
+      padding: 60px;
+      color: white;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .auth-hero h1 {
+      font-size: 40px;
+      margin-bottom: 20px;
+      line-height: 1.2;
+    }
+
+    .auth-hero p {
+      font-size: 18px;
+      opacity: 0.9;
+      margin-bottom: 30px;
+    }
+
+    .auth-form {
+      background: white;
+      padding: 60px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .auth-tabs {
+      display: flex;
+      gap: 0;
+      margin-bottom: 30px;
+      border-bottom: 2px solid #eee;
+    }
+
+    .auth-tab {
+      flex: 1;
+      padding: 12px;
+      text-align: center;
+      cursor: pointer;
+      font-weight: 600;
+      color: #999;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -2px;
+      transition: all 0.3s;
+    }
+
+    .auth-tab.active {
+      color: var(--color-primary);
+      border-bottom-color: var(--color-primary);
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-group label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: var(--color-text);
+    }
+
+    .form-group input {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #ddd;
+      border-radius: var(--radius-md);
+      font-size: 16px;
+      transition: border-color 0.3s;
+    }
+
+    .form-group input:focus {
+      outline: none;
+      border-color: var(--color-primary);
+      box-shadow: 0 0 0 3px rgba(1, 105, 111, 0.1);
+    }
+
+    .form-group input:invalid {
+      border-color: var(--color-error);
+    }
+
+    .password-strength {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+      margin-top: 8px;
+    }
+
+    .strength-bar {
+      height: 4px;
+      background: #eee;
+      border-radius: 2px;
+    }
+
+    .strength-bar.filled {
+      background: var(--color-success);
+    }
+
+    .error-message {
+      color: var(--color-error);
+      font-size: 14px;
+      margin-top: 6px;
+      display: none;
+    }
+
+    .error-message.show {
+      display: block;
+    }
+
+    .btn {
+      padding: 12px 24px;
+      border: none;
+      border-radius: var(--radius-md);
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+      width: 100%;
+    }
+
+    .btn-primary {
+      background: var(--color-primary);
+      color: white;
+      margin-top: 10px;
+    }
+
+    .btn-primary:hover {
+      background: #0a5359;
+      transform: translateY(-2px);
+      box-shadow: 0 10px 20px rgba(1, 105, 111, 0.2);
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .divider {
+      display: flex;
+      align-items: center;
+      margin: 30px 0;
+      gap: 12px;
+      color: #999;
+    }
+
+    .divider::before,
+    .divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: #ddd;
+    }
+
+    .oauth-buttons {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+
+    .oauth-btn {
+      padding: 12px;
+      border: 1px solid #ddd;
+      background: white;
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      font-size: 24px;
+      transition: all 0.3s;
+    }
+
+    .oauth-btn:hover {
+      border-color: var(--color-primary);
+      background: #f5f5f5;
+    }
+
+    .auth-link {
+      text-align: center;
+      margin-top: 20px;
+      color: #666;
+      font-size: 14px;
+    }
+
+    .auth-link a {
+      color: var(--color-primary);
+      text-decoration: none;
+      font-weight: 600;
+    }
+
+    .loading-spinner {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border: 2px solid rgba(255,255,255,.3);
+      border-radius: 50%;
+      border-top-color: white;
+      animation: spin 0.6s linear infinite;
+      margin-right: 8px;
+      vertical-align: middle;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Mobile */
+    @media (max-width: 768px) {
+      .auth-container {
+        grid-template-columns: 1fr;
+      }
+
+      .auth-hero {
+        padding: 40px 30px;
+        order: 2;
+      }
+
+      .auth-form {
+        padding: 40px 30px;
+        order: 1;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="auth-container">
+    <!-- Hero Section -->
+    <div class="auth-hero">
+      <h1>🚀 Welcome to SocialHub</h1>
+      <p>Manage all your social media in one place with AI-powered insights.</p>
+      <div style="margin-top: 40px;">
+        <div style="font-size: 48px; margin-bottom: 20px;">✨</div>
+        <p style="font-size: 16px; line-height: 1.8;">
+          • 5+ social platforms<br>
+          • AI content optimization<br>
+          • Real-time analytics<br>
+          • Team collaboration
+        </p>
+      </div>
+    </div>
+
+    <!-- Form Section -->
+    <div class="auth-form">
+      <!-- Tabs -->
+      <div class="auth-tabs">
+        <div class="auth-tab active" id="tab-login">Sign In</div>
+        <div class="auth-tab" id="tab-signup">Create Account</div>
+      </div>
+
+      <!-- Login Form -->
+      <form id="login-form" style="display: block;">
+        <div class="form-group">
+          <label>Email Address</label>
+          <input type="email" id="login-email" required placeholder="you@example.com">
+          <div class="error-message" id="login-email-error"></div>
+        </div>
+
+        <div class="form-group">
+          <label>Password</label>
+          <input type="password" id="login-password" required placeholder="••••••••">
+          <div class="error-message" id="login-password-error"></div>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+          <label style="display: flex; align-items: center; gap: 8px; font-weight: 400;">
+            <input type="checkbox" id="remember-me">
+            <span>Remember me</span>
+          </label>
+          <a href="/forgot-password" style="color: var(--color-primary); font-size: 14px; text-decoration: none;">Forgot password?</a>
+        </div>
+
+        <button type="submit" class="btn btn-primary" id="login-btn">
+          Sign In
+        </button>
+
+        <div class="error-message" id="login-error"></div>
+      </form>
+
+      <!-- Signup Form -->
+      <form id="signup-form" style="display: none;">
+        <div class="form-group">
+          <label>Full Name</label>
+          <input type="text" id="signup-name" required placeholder="John Doe">
+          <div class="error-message" id="signup-name-error"></div>
+        </div>
+
+        <div class="form-group">
+          <label>Email Address</label>
+          <input type="email" id="signup-email" required placeholder="you@example.com">
+          <div class="error-message" id="signup-email-error"></div>
+        </div>
+
+        <div class="form-group">
+          <label>Password</label>
+          <input type="password" id="signup-password" required placeholder="••••••••">
+          <div class="password-strength" id="password-strength">
+            <div class="strength-bar"></div>
+            <div class="strength-bar"></div>
+            <div class="strength-bar"></div>
+            <div class="strength-bar"></div>
+          </div>
+          <div class="error-message" id="signup-password-error"></div>
+        </div>
+
+        <div class="form-group">
+          <label>Confirm Password</label>
+          <input type="password" id="signup-confirm-password" required placeholder="••••••••">
+          <div class="error-message" id="signup-confirm-error"></div>
+        </div>
+
+        <label style="display: flex; gap: 8px; align-items: flex-start; margin-bottom: 20px;">
+          <input type="checkbox" id="agree-terms" required>
+          <span style="font-size: 14px;">
+            I agree to the <a href="/terms" style="color: var(--color-primary);">Terms of Service</a> and 
+            <a href="/privacy" style="color: var(--color-primary);">Privacy Policy</a>
+          </span>
+        </label>
+
+        <button type="submit" class="btn btn-primary" id="signup-btn">
+          Create Account
+        </button>
+
+        <div class="error-message" id="signup-error"></div>
+      </form>
+
+      <!-- Divider -->
+      <div class="divider">or</div>
+
+      <!-- OAuth Buttons -->
+      <div class="oauth-buttons">
+        <button class="oauth-btn" id="google-oauth" title="Continue with Google">🔵</button>
+        <button class="oauth-btn" id="facebook-oauth" title="Continue with Facebook">👤</button>
+        <button class="oauth-btn" id="linkedin-oauth" title="Continue with LinkedIn">💼</button>
+      </div>
+
+      <!-- Sign Up Link -->
+      <div class="auth-link">
+        <span id="auth-link-text"></span>
+      </div>
+    </div>
+  </div>
+
+  <script src="../js/validators.js"></script>
+  <script src="../js/auth-service.js"></script>
+  <script>
+    // Tab switching
+    const tabLogin = document.getElementById('tab-login');
+    const tabSignup = document.getElementById('tab-signup');
+    const loginForm = document.getElementById('login-form');
+    const signupForm = document.getElementById('signup-form');
+    const authLinkText = document.getElementById('auth-link-text');
+
+    tabLogin.addEventListener('click', () => {
+      tabLogin.classList.add('active');
+      tabSignup.classList.remove('active');
+      loginForm.style.display = 'block';
+      signupForm.style.display = 'none';
+      authLinkText.innerHTML = `Don't have an account? <a href="#" onclick="switchTab('signup')">Sign up</a>`;
+    });
+
+    tabSignup.addEventListener('click', () => {
+      tabSignup.classList.add('active');
+      tabLogin.classList.remove('active');
+      signupForm.style.display = 'block';
+      loginForm.style.display = 'none';
+      authLinkText.innerHTML = `Already have an account? <a href="#" onclick="switchTab('login')">Sign in</a>`;
+    });
+
+    function switchTab(tab) {
+      if (tab === 'login') tabLogin.click();
+      else tabSignup.click();
+    }
+
+    // Set initial link text
+    authLinkText.innerHTML = `Don't have an account? <a href="#" onclick="switchTab('signup')">Sign up</a>`;
+
+    // Password strength indicator
+    const passwordInput = document.getElementById('signup-password');
+    const strengthBars = document.querySelectorAll('#password-strength .strength-bar');
+
+    passwordInput?.addEventListener('input', (e) => {
+      const strength = calculatePasswordStrength(e.target.value);
+      strengthBars.forEach((bar, i) => {
+        if (i < strength) {
+          bar.classList.add('filled');
+        } else {
+          bar.classList.remove('filled');
+        }
+      });
+    });
+
+    function calculatePasswordStrength(password) {
+      let strength = 0;
+      if (password.length >= 8) strength++;
+      if (/[a-z]/.test(password) && /[A-Z]/.test(password)) strength++;
+      if (/[0-9]/.test(password)) strength++;
+      if (/[!@#$%^&*]/.test(password)) strength++;
+      return Math.min(strength, 4);
+    }
+
+    // Form handling
+    document.getElementById('login-form').addEventListener('submit', handleLogin);
+    document.getElementById('signup-form').addEventListener('submit', handleSignup);
+
+    async function handleLogin(e) {
+      e.preventDefault();
+      const email = document.getElementById('login-email').value;
+      const password = document.getElementById('login-password').value;
+      const btn = document.getElementById('login-btn');
+
+      btn.disabled = true;
+      btn.innerHTML = '<span class="loading-spinner"></span>Signing in...';
+
+      try {
+        const authService = new AuthService();
+        await authService.login(email, password);
+        window.location.href = '/dashboard';
+      } catch (error) {
+        document.getElementById('login-error').textContent = error.message;
+        document.getElementById('login-error').classList.add('show');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = 'Sign In';
+      }
+    }
+
+    async function handleSignup(e) {
+      e.preventDefault();
+      const name = document.getElementById('signup-name').value;
+      const email = document.getElementById('signup-email').value;
+      const password = document.getElementById('signup-password').value;
+      const confirmPassword = document.getElementById('signup-confirm-password').value;
+      const btn = document.getElementById('signup-btn');
+
+      // Validation
+      if (password !== confirmPassword) {
+        document.getElementById('signup-confirm-error').textContent = 'Passwords do not match';
+        document.getElementById('signup-confirm-error').classList.add('show');
+        return;
+      }
+
+      btn.disabled = true;
+      btn.innerHTML = '<span class="loading-spinner"></span>Creating account...';
+
+      try {
+        const authService = new AuthService();
+        await authService.register(email, password, name);
+        
+        // Show verification message
+        alert('Check your email to verify your account');
+        window.location.href = '/verify-email';
+      } catch (error) {
+        document.getElementById('signup-error').textContent = error.message;
+        document.getElementById('signup-error').classList.add('show');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = 'Create Account';
+      }
+    }
+
+    // OAuth handlers
+    document.getElementById('google-oauth').addEventListener('click', () => handleOAuth('google'));
+    document.getElementById('facebook-oauth').addEventListener('click', () => handleOAuth('facebook'));
+    document.getElementById('linkedin-oauth').addEventListener('click', () => handleOAuth('linkedin'));
+
+    function handleOAuth(provider) {
+      const clientIds = {
+        google: 'YOUR_GOOGLE_CLIENT_ID',
+        facebook: 'YOUR_FACEBOOK_APP_ID',
+        linkedin: 'YOUR_LINKEDIN_CLIENT_ID'
+      };
+
+      const redirectUri = \`\${window.location.origin}/oauth/\${provider}/callback\`;
+
+      const authUrls = {
+        google: \`https://accounts.google.com/o/oauth2/v2/auth?client_id=\${clientIds.google}&redirect_uri=\${redirectUri}&response_type=code&scope=profile%20email\`,
+        facebook: \`https://www.facebook.com/v18.0/dialog/oauth?client_id=\${clientIds.facebook}&redirect_uri=\${redirectUri}&scope=public_profile,email\`,
+        linkedin: \`https://www.linkedin.com/oauth/v2/authorization?client_id=\${clientIds.linkedin}&redirect_uri=\${redirectUri}&response_type=code&scope=profile%20email\`
+      };
+
+      window.location.href = authUrls[provider];
+    }
+  </script>
+</body>
+</html>

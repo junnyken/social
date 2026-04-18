@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>FB AutoPoster</title>
+    <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+    <div class="header">
+        <h2>FB AutoPoster</h2>
+        <div id="status-indicator" class="status-dot offline"></div>
+    </div>
+    
+    <div class="content">
+        <p><strong>Status:</strong> <span id="status-text">Disconnected</span></p>
+        <p><strong>Account:</strong> <span id="account-name">None</span></p>
+        <div class="actions">
+            <button id="add-group-btn" class="btn primary">Thêm vào danh sách nhóm</button>
+            <button id="toggle-bot" class="btn warning">▶ Resume</button>
+            <button id="open-dashboard" class="btn ghost">Mở Dashboard</button>
+        </div>
+    </div>
+
+    <script src="popup.js"></script>
+</body>
+</html>

@@ -1,0 +1,63 @@
+body {
+    width: 360px;
+    font-family: system-ui, -apple-system, sans-serif;
+    margin: 0;
+    padding: 0;
+    color: #fff;
+    background-color: #1e3a5f; /* Navy */
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 15px;
+    background-color: rgba(0,0,0,0.2);
+    border-bottom: 1px solid #38bdf8; /* Sky Blue */
+}
+
+.header h2 {
+    margin: 0;
+    font-size: 16px;
+    color: #f9f8f5;
+}
+
+.status-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+}
+
+.status-dot.online { background-color: #4ade80; box-shadow: 0 0 8px #4ade80; }
+.status-dot.offline { background-color: #f87171; box-shadow: 0 0 8px #f87171; }
+
+.content {
+    padding: 15px;
+}
+
+.content p {
+    font-size: 14px;
+    margin: 8px 0;
+}
+
+.actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.btn {
+    padding: 10px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: opacity 0.2s;
+}
+
+.btn:hover { opacity: 0.9; }
+.btn.primary { background-color: #38bdf8; color: #fff; }
+.btn.warning { background-color: #fbbf24; color: #1e3a5f; }
+.btn.ghost { background-color: transparent; border: 1px solid #38bdf8; color: #38bdf8; }
+.btn.ghost:hover { background-color: rgba(56,189,248,0.1); }

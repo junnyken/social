@@ -1,0 +1,38 @@
+{
+  "manifest_version": 3,
+  "name": "FB AutoPoster",
+  "version": "1.0.0",
+  "description": "Công cụ tự động đăng bài Facebook ngầm qua Node.js Backend",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage",
+    "alarms",
+    "notifications"
+  ],
+  "host_permissions": [
+    "https://www.facebook.com/*",
+    "http://localhost:3000/*"
+  ],
+  "background": {
+    "service_worker": "background/service-worker.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://www.facebook.com/*"],
+      "js": [
+        "shared/constants.js", 
+        "shared/delay.js", 
+        "shared/api-client.js", 
+        "content/group-scanner.js",
+        "content/group-poster.js",
+        "content/content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "popup/popup.html"
+  }
+}
