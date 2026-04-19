@@ -179,6 +179,11 @@ app.get('/socket.io/socket.io.js', (req, res) => {
     res.sendFile(path.join(__dirname, 'node_modules/socket.io/client-dist/socket.io.min.js'));
 });
 
+// Explicit route for auth-callback (ensures it works even if static middleware has path issues)
+app.get('/auth-callback.html', (req, res) => {
+    res.sendFile(path.join(__dirname, '../auth-callback.html'));
+});
+
 // Serve Frontend with cache headers
 const frontendPath = path.join(__dirname, '../');
 app.use(express.static(frontendPath, {
