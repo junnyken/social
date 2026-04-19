@@ -11,7 +11,7 @@ const editingSessions = new Map();
 function initializeSocketIO(server, config) {
     io = new Server(server, {
         cors: {
-            origin: config.allowedOrigins || ['http://localhost:3000'],
+            origin: config.allowedOrigins || ['https://social-9cpy.onrender.com'],
             methods: ['GET', 'POST'],
             credentials: true
         },

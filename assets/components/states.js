@@ -34,7 +34,7 @@ export function renderErrorState(container, message) {
         Thử lại
       </button>
       <div style="margin-top:var(--space-3);font-size:var(--text-xs);color:var(--color-error)">
-        Đảm bảo backend đang chạy tại localhost:3000
+        Đảm bảo backend đang chạy tại social-9cpy.onrender.com
       </div>
     </div>
   `;

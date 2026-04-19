@@ -12,7 +12,7 @@ export function useSocket() {
     if (!token) return;
 
     // Connect to Socket.IO server
-    const newSocket = io(process.env.REACT_APP_API_URL || 'http://localhost:3000', {
+    const newSocket = io(process.env.REACT_APP_API_URL || 'https://social-9cpy.onrender.com', {
       auth: { token },
       transports: ['websocket', 'polling'],
       reconnection: true,

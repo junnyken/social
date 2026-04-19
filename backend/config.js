@@ -3,11 +3,11 @@ require('dotenv').config && require('dotenv').config();
 module.exports = {
   env: process.env.NODE_ENV || 'development',
   port: process.env.PORT || 3000,
-  allowedOrigins: process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : ['http://localhost:3000'],
+  allowedOrigins: process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : ['https://social-9cpy.onrender.com'],
   fb: {
     appId: process.env.FB_APP_ID,
     appSecret: process.env.FB_APP_SECRET,
-    redirectUri: process.env.FB_REDIRECT_URI || 'http://localhost:3000/api/v1/auth/callback',
+    redirectUri: process.env.FB_REDIRECT_URI || 'https://social-9cpy.onrender.com/api/v1/auth/callback',
     apiVersion: 'v19.0',
     scopes: [
       // ── Core Page Permissions (hoạt động ở Development mode) ──

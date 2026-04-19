@@ -28,7 +28,7 @@ export async function startScan(keywords) {
   if (matches.length > 0) {
     // Báo cáo về backend
     try {
-        await fetch('http://localhost:3000/api/v1/logs/keyword-match', {
+        await fetch('https://social-9cpy.onrender.com/api/v1/logs/keyword-match', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ matches })

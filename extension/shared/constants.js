@@ -13,5 +13,5 @@ window.FB_CONSTANTS = {
         MODAL_CLOSE: 'div[aria-label="Close"][role="button"]'
     },
     // Configuration
-    API_BASE_URL: 'http://localhost:3000/api/v1'
+    API_BASE_URL: 'https://social-9cpy.onrender.com/api/v1'
 };

@@ -1,5 +1,5 @@
 // ============================================================
-// API Client — Kết nối Web App với Backend (localhost:3000)
+// API Client — Kết nối Web App với Backend (social-9cpy.onrender.com)
 // ============================================================
 
 const API_BASE = '/api/v1';

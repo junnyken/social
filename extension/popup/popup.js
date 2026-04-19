@@ -9,14 +9,14 @@ document.addEventListener('DOMContentLoaded', () => {
     // Ping backend to check status
     async function checkBackend() {
         try {
-            const res = await fetch('http://localhost:3000/api/v1/config');
+            const res = await fetch('https://social-9cpy.onrender.com/api/v1/config');
             if (res.ok) {
                 statusDot.className = 'status-dot online';
                 statusText.innerText = 'Connected';
                 
                 // Fetch accounts
                 try {
-                    const accRes = await fetch('http://localhost:3000/api/v1/accounts');
+                    const accRes = await fetch('https://social-9cpy.onrender.com/api/v1/accounts');
                     if (accRes.ok) {
                         const { data } = await accRes.json();
                         const active = data.find(a => a.status === 'connected');
@@ -50,7 +50,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 try {
                     const groupName = tabs[0].title.replace(/\s*\|.*/g, ''); // rough cleanup
                     let groupId = url.match(/groups\/([^/?]+)/)?.[1] || '';
-                    await fetch('http://localhost:3000/api/v1/config/update', {
+                    await fetch('https://social-9cpy.onrender.com/api/v1/config/update', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ /* dummy config field */ blacklist: [] })
@@ -67,11 +67,11 @@ document.addEventListener('DOMContentLoaded', () => {
         isRunning = !isRunning;
         toggleBtn.innerText = isRunning ? '⏸ Pause' : '▶ Resume';
         try {
-            await fetch('http://localhost:3000/api/v1/queue/resume', { method: 'POST' });
+            await fetch('https://social-9cpy.onrender.com/api/v1/queue/resume', { method: 'POST' });
         } catch(e){}
     });
 
     dashBtn.addEventListener('click', () => {
-        chrome.tabs.create({ url: 'http://localhost:3000' });
+        chrome.tabs.create({ url: 'https://social-9cpy.onrender.com/fb-autoposter.html' });
     });
 });

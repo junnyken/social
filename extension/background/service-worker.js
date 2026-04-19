@@ -12,7 +12,7 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
 async function pollForTasks() {
     try {
         // Fetch pending group task
-        const response = await fetch('http://localhost:3000/api/v1/queue');
+        const response = await fetch('https://social-9cpy.onrender.com/api/v1/queue');
         if (!response.ok) return;
         const { data } = await response.json();
         
