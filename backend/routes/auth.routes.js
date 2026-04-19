@@ -83,12 +83,14 @@ router.get('/status', async (req, res) => {
 });
 
 // 1c2. Auto-recover token — frontend calls this when localStorage is empty
-// Returns userId from cookie so frontend can restore auth_token in localStorage
+// Returns userId from cookie OR from the first connected account (single-user mode)
 router.get('/me', async (req, res) => {
     const cookieUserId = req.cookies.fbsession;
-    if (cookieUserId) {
-        try {
-            const accounts = await dataService.getAll('accounts');
+    try {
+        const accounts = await dataService.getAll('accounts');
+        
+        // 1. Try cookie first
+        if (cookieUserId) {
             const account = accounts.find(a => a.id === cookieUserId);
             if (account) {
                 return res.json({
@@ -99,9 +101,30 @@ router.get('/me', async (req, res) => {
                     picture: account.picture
                 });
             }
-        } catch (e) {
-            console.error('[Auth /me] Error:', e.message);
         }
+        
+        // 2. Fallback: if only 1 connected account exists, auto-select it
+        //    (single-user deployment — no need to force re-login)
+        const connected = accounts.filter(a => a.status === 'connected');
+        if (connected.length > 0) {
+            const account = connected[0];
+            // Also set the cookie for future requests
+            res.cookie('fbsession', account.id, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'lax',
+                maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
+            });
+            return res.json({
+                success: true,
+                authenticated: true,
+                userId: account.id,
+                name: account.name,
+                picture: account.picture
+            });
+        }
+    } catch (e) {
+        console.error('[Auth /me] Error:', e.message);
     }
     res.json({ success: true, authenticated: false });
 });
