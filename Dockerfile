@@ -21,6 +21,8 @@ COPY modules ./modules/
 COPY assets ./assets/
 COPY extension ./extension/
 COPY fb-autoposter.html ./
+COPY auth-callback.html ./
+COPY offline.html ./
 COPY sw.js ./
 # Also config if any exist at root, but our main config is inside backend
 
