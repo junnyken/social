@@ -47,7 +47,7 @@ class DashboardAnalyticsService {
             const platforms = [];
 
             for (const page of pages) {
-                const metric = 'page_impressions,page_engaged_users,page_fans,page_fan_adds,page_views_total';
+                const metric = 'page_impressions,page_engaged_users,page_fans,page_fan_adds';
                 const insights = await fbGraphV2.getPageInsights(page.access_token, page.id, metric, 'day');
                 
                 let impressions = 0, engaged = 0, followers = 0, fanAdds = 0;
