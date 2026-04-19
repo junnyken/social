@@ -98,9 +98,8 @@ router.get('/callback', async (req, res) => {
                 postsToday: 0,
                 successRate: 100
             });
-            const mockSessionId = createSession(mockId, 'Mock FB User', 'owner');
-            res.cookie('fbsession', mockSessionId, { httpOnly: true, maxAge: 7 * 24 * 3600000 });
-            return res.redirect('/auth-callback.html?status=success');
+            // Pass token via URL for frontend to store in localStorage
+            return res.redirect('/auth-callback.html?status=success&token=' + mockId);
         }
 
         // Real Access Token Exchange (Short-lived)
@@ -163,16 +162,16 @@ router.get('/callback', async (req, res) => {
         }
         await dataService.write('accounts', allAccounts);
 
-        // Security: Create session and set httpOnly cookie (userId stored in cookie, validated against data store)
-        const sessionId = createSession(userData.id, userData.name, 'owner');
-        res.cookie('fbsession', sessionId, {
+        // Pass userId as token via URL — frontend stores in localStorage
+        // Also set cookie as fallback
+        res.cookie('fbsession', userData.id, {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
             sameSite: 'lax',
-            maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+            maxAge: 7 * 24 * 60 * 60 * 1000
         });
 
-        res.redirect('/auth-callback.html?status=success');
+        res.redirect('/auth-callback.html?status=success&token=' + userData.id);
 
     } catch (e) {
         console.error('[OAuth]', e.response?.data || e.message);

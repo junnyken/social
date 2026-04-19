@@ -10,16 +10,30 @@
   </div>
   <style>@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }</style>
   <script>
-    // Backend đã xử lý code exchange, chỉ cần redirect về app
-    // URL: /auth-callback.html?status=success hoặc ?status=error
+    // Backend truyền token qua URL: /auth-callback.html?status=success&token=USER_ID
     const params = new URLSearchParams(window.location.search);
-    if (params.get('status') === 'success') {
+    const status = params.get('status');
+    const token = params.get('token');
+
+    if (status === 'success' && token) {
+      // Lưu token vào localStorage để frontend gửi kèm mọi API request
+      localStorage.setItem('auth_token', token);
+      console.log('[Auth] Token saved to localStorage:', token);
+
       // Nếu mở bằng popup
+      if (window.opener) {
+        window.opener.postMessage({ type: 'FB_AUTH_SUCCESS', token }, '*');
+        window.close();
+      } else {
+        // Full redirect → Dashboard
+        window.location.href = 'fb-autoposter.html#/dashboard';
+      }
+    } else if (status === 'success') {
+      // Fallback: status=success nhưng không có token (backward compat)
       if (window.opener) {
         window.opener.postMessage({ type: 'FB_AUTH_SUCCESS' }, '*');
         window.close();
       } else {
-        // Nếu full redirect
         window.location.href = 'fb-autoposter.html#/accounts';
       }
     } else {

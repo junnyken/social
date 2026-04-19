@@ -8,10 +8,18 @@ const WS_URL   = (window.location.protocol === 'https:' ? 'wss://' : 'ws://') + 
 // ── HTTP Helpers ─────────────────────────────────────────────
 
 async function request(method, path, body = null, retries = 2) {
+  const headers = { 'Content-Type': 'application/json' };
+
+  // Gắn auth token từ localStorage vào mọi request
+  const authToken = localStorage.getItem('auth_token');
+  if (authToken) {
+    headers['Authorization'] = 'Bearer ' + authToken;
+  }
+
   const opts = {
     method,
-    credentials: 'same-origin',
-    headers: { 'Content-Type': 'application/json' }
+    credentials: 'same-origin', // Fallback: cũng gửi cookie nếu có
+    headers
   };
   if (body) opts.body = JSON.stringify(body);
 
@@ -20,8 +28,9 @@ async function request(method, path, body = null, retries = 2) {
       try {
           const res = await fetch(`${API_BASE}${path}`, opts);
 
-          // Token hết hạn → redirect về login
+          // Token hết hạn → xóa token, redirect về login
           if (res.status === 401) {
+            localStorage.removeItem('auth_token');
             window.location.hash = '#/login';
             throw new Error('Unauthorized');
           }
@@ -121,7 +130,12 @@ function updateConnectionStatus(status) {
 export const Auth = {
   getLoginUrl: ()        => api.get('/auth/login-url'),
   getStatus:   ()        => api.get('/auth/status'),
-  logout:      ()        => api.post('/auth/logout'),
+  logout:      ()        => {
+    localStorage.removeItem('auth_token');
+    return api.post('/auth/logout');
+  },
+  isLoggedIn:  ()        => !!localStorage.getItem('auth_token'),
+  getToken:    ()        => localStorage.getItem('auth_token'),
 };
 
 export const Accounts = {

@@ -29,10 +29,25 @@ exports.requireAuth = async (req, res, next) => {
         }
     }
 
-    // 2. Try Bearer token (for API clients / extensions)
+    // 2. Try Bearer token (userId from localStorage, sent by frontend)
     if (authHeader && authHeader.startsWith('Bearer ')) {
-        const token = authHeader.slice(7);
+        const token = authHeader.slice(7).trim();
         if (token && token.length > 0) {
+            try {
+                const accounts = await dataService.getAll('accounts');
+                const account = accounts.find(a => a.id === token);
+                if (account) {
+                    req.user = {
+                        id: account.id,
+                        name: account.name || 'User',
+                        role: 'owner'
+                    };
+                    return next();
+                }
+            } catch (e) {
+                console.error('[Auth] Bearer token lookup error:', e.message);
+            }
+            // Fallback: accept token even if data lookup fails (for extensions etc)
             req.user = {
                 id: token.slice(0, 20) || 'api-user',
                 name: 'API User',
