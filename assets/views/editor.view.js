@@ -1,4 +1,4 @@
-import { Queue } from '../api-client.js';
+import { Queue, Accounts, Pages } from '../api-client.js';
 
 export async function renderEditor(container) {
   container.innerHTML = `
@@ -40,8 +40,18 @@ export async function renderEditor(container) {
             <div class="card">
                 <h3 style="margin-bottom:var(--space-4)">Post settings</h3>
                 <div style="display:flex;gap:var(--space-4);flex-wrap:wrap">
-                    <div class="field" style="flex:1;min-width:200px"><label class="field-label">Account</label><input type="text" id="post-acc" class="field-input" placeholder="accountId"></div>
-                    <div class="field" style="flex:1;min-width:200px"><label class="field-label">Group ID</label><input type="text" id="post-target" class="field-input" placeholder="group id"></div>
+                    <div class="field" style="flex:1;min-width:200px">
+                        <label class="field-label">Account</label>
+                        <select id="post-acc" class="field-input">
+                            <option value="">Đang tải...</option>
+                        </select>
+                    </div>
+                    <div class="field" style="flex:1;min-width:200px">
+                        <label class="field-label">Target Page/Group</label>
+                        <select id="post-target" class="field-input">
+                            <option value="">Đang tải...</option>
+                        </select>
+                    </div>
                 </div>
                 <div style="display:flex;gap:var(--space-3);margin-top:var(--space-2)">
                     <button class="btn btn-ghost btn-md">Preview</button>
@@ -99,10 +109,17 @@ export async function renderEditor(container) {
       const t = document.getElementById('post-target').value;
       const content = document.getElementById('editor-area').value;
       
+      if (!acc || !t) {
+          window.Toast && window.Toast.show('Vui lòng chọn Account và Target', 'warning');
+          return;
+      }
+
       try {
+          // If the selected target is a page, type: 'page', otherwise assume group.
+          const tName = document.getElementById('post-target').options[document.getElementById('post-target').selectedIndex].text;
           await Queue.add({
-              accountId: acc || 'acc1',
-              target: { type: 'group', id: t || 'demo123', name: 'Demo Group' },
+              accountId: acc,
+              target: { type: 'page', id: t, name: tName },
               content: content || 'Demo',
               scheduledAt: new Date(Date.now() + 60000).toISOString()
           });
@@ -112,4 +129,37 @@ export async function renderEditor(container) {
           window.Toast && window.Toast.show('Error scheduling post', 'error');
       }
   });
+
+  // Fetch Accounts and Pages to populate dropdowns
+  loadTargets();
+}
+
+async function loadTargets() {
+    const accSelect = document.getElementById('post-acc');
+    const targetSelect = document.getElementById('post-target');
+    
+    try {
+        const [accRes, pagesRes] = await Promise.all([
+            Accounts.list().catch(() => ({ data: [] })),
+            Pages.list().catch(() => ({ data: [] }))
+        ]);
+
+        const accounts = accRes.data || [];
+        const pages = pagesRes.data || [];
+
+        // Populate accounts
+        accSelect.innerHTML = accounts.length > 0 
+            ? accounts.map(a => `<option value="${a.id}">${a.name}</option>`).join('')
+            : '<option value="">No Accounts Found</option>';
+
+        // Populate pages (can be filtered by account if needed, but here we list all)
+        targetSelect.innerHTML = pages.length > 0
+            ? pages.map(p => `<option value="${p.id}">${p.name} (Page)</option>`).join('')
+            : '<option value="">No Pages Found</option>';
+
+    } catch (e) {
+        console.error('[Editor] Error loading targets:', e);
+        accSelect.innerHTML = '<option value="">Error loading</option>';
+        targetSelect.innerHTML = '<option value="">Error loading</option>';
+    }
 }
