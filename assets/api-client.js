@@ -10,7 +10,7 @@ const WS_URL   = (window.location.protocol === 'https:' ? 'wss://' : 'ws://') + 
 async function request(method, path, body = null, retries = 2) {
   const opts = {
     method,
-    credentials: 'omit',
+    credentials: 'same-origin',
     headers: { 'Content-Type': 'application/json' }
   };
   if (body) opts.body = JSON.stringify(body);
