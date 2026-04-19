@@ -57,14 +57,21 @@ router.get('/login', (req, res) => {
     res.redirect(fbLoginUrl);
 });
 
-// 1c. Auth status check
-router.get('/status', (req, res) => {
-    const sessionId = req.cookies.fbsession;
-    if (sessionId) {
-        res.json({ success: true, authenticated: true, userId: sessionId });
-    } else {
-        res.json({ success: true, authenticated: false });
+// 1c. Auth status check — validates against data store
+router.get('/status', async (req, res) => {
+    const userId = req.cookies.fbsession;
+    if (userId) {
+        try {
+            const accounts = await dataService.getAll('accounts');
+            const account = accounts.find(a => a.id === userId);
+            if (account) {
+                return res.json({ success: true, authenticated: true, userId: account.id, name: account.name });
+            }
+        } catch (e) {
+            console.error('[Auth Status] Error:', e.message);
+        }
     }
+    res.json({ success: true, authenticated: false });
 });
 
 // 2. OAuth Callback
@@ -156,12 +163,12 @@ router.get('/callback', async (req, res) => {
         }
         await dataService.write('accounts', allAccounts);
 
-        // Security: Create a proper session and set httpOnly cookie
+        // Security: Create session and set httpOnly cookie (userId stored in cookie, validated against data store)
         const sessionId = createSession(userData.id, userData.name, 'owner');
         res.cookie('fbsession', sessionId, {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
-            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+            sameSite: 'lax',
             maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
         });
 
