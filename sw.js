@@ -3,7 +3,7 @@
 // Network-first for API, Stale-while-revalidate for static
 // ============================================================
 
-const CACHE_VERSION = 'socialhub-v2';
+const CACHE_VERSION = 'socialhub-v3';
 const STATIC_ASSETS = [
     '/',
     '/fb-autoposter.html',
