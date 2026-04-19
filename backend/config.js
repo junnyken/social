@@ -13,9 +13,9 @@ module.exports = {
       // ── Core Page Permissions (hoạt động ở Development mode) ──
       'pages_show_list',           // Liệt kê Pages của user
       'pages_read_engagement',     // Đọc likes, comments, shares
-      'pages_manage_posts',        // Đăng bài lên Page
+      // 'pages_manage_posts',        // Cần add Use Case bên FB developer
       'pages_manage_metadata',     // Quản lý thông tin Page
-      'pages_read_user_content',   // Đọc nội dung user trên Page
+      // 'pages_read_user_content',   // Cần add Use Case bên FB developer
       'pages_messaging',           // Inbox / tin nhắn Page
       'business_management',       // Quản lý Business (nếu cần)
       // ── Đã loại bỏ (invalid/deprecated) ──
