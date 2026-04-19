@@ -82,6 +82,30 @@ router.get('/status', async (req, res) => {
     res.json({ success: true, authenticated: false });
 });
 
+// 1c2. Auto-recover token — frontend calls this when localStorage is empty
+// Returns userId from cookie so frontend can restore auth_token in localStorage
+router.get('/me', async (req, res) => {
+    const cookieUserId = req.cookies.fbsession;
+    if (cookieUserId) {
+        try {
+            const accounts = await dataService.getAll('accounts');
+            const account = accounts.find(a => a.id === cookieUserId);
+            if (account) {
+                return res.json({
+                    success: true,
+                    authenticated: true,
+                    userId: account.id,
+                    name: account.name,
+                    picture: account.picture
+                });
+            }
+        } catch (e) {
+            console.error('[Auth /me] Error:', e.message);
+        }
+    }
+    res.json({ success: true, authenticated: false });
+});
+
 // 1d. Debug — View account pages data (temporary, remove after debugging)
 router.get('/debug-pages', async (req, res) => {
     try {

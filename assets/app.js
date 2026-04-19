@@ -24,6 +24,9 @@ async function initApp() {
   // Error boundary first — catch all errors from the start
   initErrorBoundary();
 
+  // Recover auth token from cookie if localStorage is empty (production fix)
+  await Auth.initAuth();
+
   connectWebSocket();
 
   try {

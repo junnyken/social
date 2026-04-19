@@ -28,10 +28,17 @@ async function request(method, path, body = null, retries = 2) {
       try {
           const res = await fetch(`${API_BASE}${path}`, opts);
 
-          // Token hết hạn → xóa token, redirect về login
-          if (res.status === 401) {
+          // Token hết hạn hoặc chưa có → thử khôi phục từ cookie
+          if (res.status === 401 && !path.includes('/auth/me')) {
+            // Try to recover token from cookie
+            const recovered = await _tryRecoverToken();
+            if (recovered) {
+              // Retry this request with the recovered token
+              attempt = 0;
+              continue;
+            }
             localStorage.removeItem('auth_token');
-            window.location.hash = '#/login';
+            // Don't redirect to login, just let this fail gracefully
             throw new Error('Unauthorized');
           }
 
@@ -125,6 +132,32 @@ function updateConnectionStatus(status) {
   }
 }
 
+// ── Token Recovery from Cookie ──────────────────────────────────
+let _recovering = null; // Prevent duplicate recovery calls
+
+async function _tryRecoverToken() {
+  if (_recovering) return _recovering;
+  _recovering = (async () => {
+    try {
+      const res = await fetch(`${API_BASE}/auth/me`, { credentials: 'same-origin' });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.authenticated && data.userId) {
+          localStorage.setItem('auth_token', data.userId);
+          console.log('[Auth] Token recovered from cookie:', data.userId);
+          return true;
+        }
+      }
+    } catch (e) {
+      console.warn('[Auth] Token recovery failed:', e.message);
+    }
+    return false;
+  })();
+  const result = await _recovering;
+  _recovering = null;
+  return result;
+}
+
 // ── Endpoint Wrappers ─────────────────────────────────────────
 
 export const Auth = {
@@ -136,6 +169,12 @@ export const Auth = {
   },
   isLoggedIn:  ()        => !!localStorage.getItem('auth_token'),
   getToken:    ()        => localStorage.getItem('auth_token'),
+  // Call this on page load to recover token from cookie if localStorage is empty
+  initAuth: async ()     => {
+    if (!localStorage.getItem('auth_token')) {
+      await _tryRecoverToken();
+    }
+  },
 };
 
 export const Accounts = {
