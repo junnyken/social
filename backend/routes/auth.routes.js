@@ -60,10 +60,18 @@ router.get('/login', (req, res) => {
 // 1c. Auth status check — validates against data store
 router.get('/status', async (req, res) => {
     const userId = req.cookies.fbsession;
-    if (userId) {
+    // Also check Bearer token from localStorage
+    const authHeader = req.headers.authorization;
+    let tokenUserId = null;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+        tokenUserId = authHeader.slice(7).trim();
+    }
+    const checkId = userId || tokenUserId;
+    
+    if (checkId) {
         try {
             const accounts = await dataService.getAll('accounts');
-            const account = accounts.find(a => a.id === userId);
+            const account = accounts.find(a => a.id === checkId);
             if (account) {
                 return res.json({ success: true, authenticated: true, userId: account.id, name: account.name });
             }
@@ -72,6 +80,28 @@ router.get('/status', async (req, res) => {
         }
     }
     res.json({ success: true, authenticated: false });
+});
+
+// 1d. Debug — View account pages data (temporary, remove after debugging)
+router.get('/debug-pages', async (req, res) => {
+    try {
+        const accounts = await dataService.getAll('accounts');
+        const summary = accounts.map(a => ({
+            id: a.id,
+            name: a.name,
+            status: a.status,
+            pagesCount: a.pages?.length || 0,
+            pages: (a.pages || []).map(p => ({
+                id: p.id,
+                name: p.name,
+                hasToken: !!p.access_token,
+                category: p.category
+            }))
+        }));
+        res.json({ accounts: summary });
+    } catch (e) {
+        res.json({ error: e.message });
+    }
 });
 
 // 2. OAuth Callback
