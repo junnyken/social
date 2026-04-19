@@ -37,32 +37,52 @@ class DashboardAnalyticsService {
      */
     async getDashboardSummary(userId, range = '30d', compare = false) {
         const pages = await this.getConnectedPages(userId);
+        console.log(`[DashAnalytics] getDashboardSummary — Found ${pages.length} pages for userId=${userId}`);
         
         if (pages.length === 0) {
+            console.log('[DashAnalytics] No pages found, returning mock data');
             return this._mockSummary(range, compare);
         }
 
-        try {
-            let totalFollowers = 0, totalReach = 0, totalEngaged = 0, totalFollowersAdded = 0;
-            const platforms = [];
+        let totalFollowers = 0, totalReach = 0, totalEngaged = 0, totalFollowersAdded = 0;
+        const platforms = [];
+        let hasAnyData = false;
 
-            for (const page of pages) {
-                const metric = 'page_impressions,page_engaged_users,page_fans,page_fan_adds';
-                const insights = await fbGraphV2.getPageInsights(page.access_token, page.id, metric, 'day');
-                
+        for (const page of pages) {
+            console.log(`[DashAnalytics] Fetching insights for page: ${page.name} (${page.id})`);
+            try {
+                // Try individual metrics separately to avoid one bad metric killing everything
                 let impressions = 0, engaged = 0, followers = 0, fanAdds = 0;
-                
-                if (insights && insights.length > 0) {
-                    const impObj = insights.find(m => m.name === 'page_impressions');
-                    const engObj = insights.find(m => m.name === 'page_engaged_users');
-                    const fanObj = insights.find(m => m.name === 'page_fans');
-                    const fanAddObj = insights.find(m => m.name === 'page_fan_adds');
 
-                    if (impObj?.values) impressions = impObj.values.reduce((s, v) => s + (v.value || 0), 0);
-                    if (engObj?.values) engaged = engObj.values.reduce((s, v) => s + (v.value || 0), 0);
-                    if (fanObj?.values) followers = fanObj.values.length > 0 ? fanObj.values[fanObj.values.length - 1].value : 0;
-                    if (fanAddObj?.values) fanAdds = fanAddObj.values.reduce((s, v) => s + (v.value || 0), 0);
+                // Try page_fans first (lifetime metric)
+                try {
+                    const fansData = await fbGraphV2.getPageInsights(page.access_token, page.id, 'page_fans', 'day');
+                    if (fansData && fansData.length > 0) {
+                        const fanObj = fansData.find(m => m.name === 'page_fans');
+                        if (fanObj?.values?.length > 0) followers = fanObj.values[fanObj.values.length - 1].value || 0;
+                    }
+                } catch (e) {
+                    console.warn(`[DashAnalytics] page_fans failed for ${page.name}: ${e.message}`);
                 }
+
+                // Try page_impressions + page_engaged_users + page_fan_adds
+                try {
+                    const insightsData = await fbGraphV2.getPageInsights(page.access_token, page.id, 'page_impressions,page_engaged_users,page_fan_adds', 'day');
+                    if (insightsData && insightsData.length > 0) {
+                        const impObj = insightsData.find(m => m.name === 'page_impressions');
+                        const engObj = insightsData.find(m => m.name === 'page_engaged_users');
+                        const fanAddObj = insightsData.find(m => m.name === 'page_fan_adds');
+
+                        if (impObj?.values) impressions = impObj.values.reduce((s, v) => s + (v.value || 0), 0);
+                        if (engObj?.values) engaged = engObj.values.reduce((s, v) => s + (v.value || 0), 0);
+                        if (fanAddObj?.values) fanAdds = fanAddObj.values.reduce((s, v) => s + (v.value || 0), 0);
+                    }
+                } catch (e) {
+                    console.warn(`[DashAnalytics] page_impressions group failed for ${page.name}: ${e.message}`);
+                }
+
+                // If we got followers OR impressions, count it as real data
+                if (followers > 0 || impressions > 0) hasAnyData = true;
 
                 totalFollowers += followers;
                 totalReach += Math.round(impressions * 0.8);
@@ -76,39 +96,50 @@ class DashboardAnalyticsService {
                     reach: Math.round(impressions * 0.8),
                     er: followers > 0 ? parseFloat(((engaged / followers) * 100).toFixed(1)) : 0
                 });
+
+                console.log(`[DashAnalytics] Page ${page.name}: followers=${followers}, impressions=${impressions}, engaged=${engaged}`);
+            } catch (error) {
+                console.error(`[DashAnalytics] Error processing page ${page.name}:`, error.message);
+                // Still add this page with zero data instead of failing entirely
+                platforms.push({
+                    id: 'facebook',
+                    name: page.name || 'Facebook Page',
+                    followers: 0,
+                    reach: 0,
+                    er: 0
+                });
             }
-
-            const er = totalFollowers > 0 ? parseFloat(((totalEngaged / totalFollowers) * 100).toFixed(1)) : 0;
-
-            // Count inbox items
-            let inboxCount = 0;
-            try {
-                const inboxData = await dataService.getAll('inbox') || [];
-                inboxCount = inboxData.filter(i => !i.read).length;
-            } catch(e) { /* ignore */ }
-
-            return {
-                _source: 'live',
-                kpis: {
-                    followers: totalFollowers,
-                    followersChange: String(totalFollowersAdded),
-                    followersPct: compare && totalFollowers > 0 ? parseFloat(((totalFollowersAdded / totalFollowers) * 100).toFixed(1)) : null,
-                    reach: totalReach,
-                    reachChange: String(totalReach),
-                    reachPct: null,
-                    engagementRate: er,
-                    erChange: '0',
-                    erPct: null,
-                    inbox: inboxCount,
-                    inboxChange: '0',
-                    inboxPct: null
-                },
-                platforms
-            };
-        } catch (error) {
-            console.error('[DashAnalytics] getDashboardSummary real API error:', error.message);
-            return this._mockSummary(range, compare);
         }
+
+        const er = totalFollowers > 0 ? parseFloat(((totalEngaged / totalFollowers) * 100).toFixed(1)) : 0;
+
+        // Count inbox items
+        let inboxCount = 0;
+        try {
+            const inboxData = await dataService.getAll('inbox') || [];
+            inboxCount = inboxData.filter(i => !i.read).length;
+        } catch(e) { /* ignore */ }
+
+        console.log(`[DashAnalytics] FINAL: hasAnyData=${hasAnyData}, followers=${totalFollowers}, reach=${totalReach}, er=${er}`);
+
+        return {
+            _source: hasAnyData ? 'live' : 'live_empty',
+            kpis: {
+                followers: totalFollowers,
+                followersChange: String(totalFollowersAdded),
+                followersPct: compare && totalFollowers > 0 ? parseFloat(((totalFollowersAdded / totalFollowers) * 100).toFixed(1)) : null,
+                reach: totalReach,
+                reachChange: String(totalReach),
+                reachPct: null,
+                engagementRate: er,
+                erChange: '0',
+                erPct: null,
+                inbox: inboxCount,
+                inboxChange: '0',
+                inboxPct: null
+            },
+            platforms
+        };
     }
 
     /**

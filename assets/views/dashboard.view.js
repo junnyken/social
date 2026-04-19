@@ -160,23 +160,40 @@ export async function renderDashboard(container) {
       const logs = logsData?.data || [];
 
       // Show data source indicator
+      const isDemo = summary._source === 'demo';
+      const isLiveEmpty = summary._source === 'live_empty';
       const isLive = summary._source === 'live';
       const headerEl = container.querySelector('h1');
       if (headerEl) {
-          const badge = isLive 
-              ? '<span style="font-size:10px; padding:3px 8px; border-radius:12px; background:#10b981; color:white; margin-left:10px; vertical-align:middle;">🔴 LIVE DATA</span>'
-              : '<span style="font-size:10px; padding:3px 8px; border-radius:12px; background:#f59e0b; color:white; margin-left:10px; vertical-align:middle;">📊 DEMO DATA</span>';
+          let badge = '';
+          if (isLive) {
+              badge = '<span style="font-size:10px; padding:3px 8px; border-radius:12px; background:#10b981; color:white; margin-left:10px; vertical-align:middle;">🔴 LIVE DATA</span>';
+          } else if (isLiveEmpty) {
+              badge = '<span style="font-size:10px; padding:3px 8px; border-radius:12px; background:#3b82f6; color:white; margin-left:10px; vertical-align:middle;">🔗 CONNECTED</span>';
+          } else {
+              badge = '<span style="font-size:10px; padding:3px 8px; border-radius:12px; background:#f59e0b; color:white; margin-left:10px; vertical-align:middle;">📊 DEMO DATA</span>';
+          }
           headerEl.innerHTML = 'Dashboard ' + badge;
       }
       
       // Show connect banner when demo data
-      if (!isLive) {
+      if (isDemo) {
           const kpiGrid = document.getElementById('dash-kpis');
           if (kpiGrid) {
               kpiGrid.insertAdjacentHTML('beforebegin', `
                   <div style="padding:12px 16px; border-radius:10px; background:linear-gradient(135deg, #f59e0b22, #f59e0b08); border:1px solid #f59e0b44; margin-bottom:12px; display:flex; align-items:center; gap:10px; font-size:13px;">
                       <span style="font-size:18px;">💡</span>
                       <span style="color:var(--text);">Bạn đang xem <strong>dữ liệu demo</strong>. <a href="#/accounts" style="color:#f59e0b; font-weight:600; text-decoration:underline;">Kết nối Facebook Page</a> để hiện số liệu thật từ Graph API.</span>
+                  </div>
+              `);
+          }
+      } else if (isLiveEmpty) {
+          const kpiGrid = document.getElementById('dash-kpis');
+          if (kpiGrid) {
+              kpiGrid.insertAdjacentHTML('beforebegin', `
+                  <div style="padding:12px 16px; border-radius:10px; background:linear-gradient(135deg, #3b82f622, #3b82f608); border:1px solid #3b82f644; margin-bottom:12px; display:flex; align-items:center; gap:10px; font-size:13px;">
+                      <span style="font-size:18px;">📊</span>
+                      <span style="color:var(--text);">Facebook Pages đã kết nối! Dữ liệu insights đang được thu thập. Số liệu sẽ cập nhật khi có hoạt động trên Page.</span>
                   </div>
               `);
           }
