@@ -149,7 +149,7 @@ class DashboardAnalyticsService {
         const pages = await this.getConnectedPages(userId);
         
         if (pages.length === 0) {
-            return this._mockTopPosts();
+            return [];
         }
 
         try {
@@ -191,7 +191,7 @@ class DashboardAnalyticsService {
             return allPosts.slice(0, limit);
         } catch (error) {
             console.error('[DashAnalytics] getTopPosts error:', error.message);
-            return this._mockTopPosts();
+            return [];
         }
     }
 
@@ -202,7 +202,7 @@ class DashboardAnalyticsService {
         const pages = await this.getConnectedPages(userId);
         
         if (pages.length === 0) {
-            return this._mockBreakdown(range);
+            return this._emptyBreakdown(range);
         }
 
         try {
@@ -251,7 +251,7 @@ class DashboardAnalyticsService {
             };
         } catch (error) {
             console.error('[DashAnalytics] getEngagementBreakdown error:', error.message);
-            return this._mockBreakdown(range);
+            return this._emptyBreakdown(range);
         }
     }
 
@@ -259,14 +259,13 @@ class DashboardAnalyticsService {
      * Simple sentiment from comments
      */
     async getSentiment(userId) {
-        // For now, sentiment is basic — in production this would use NLP
-        // Return mock with _source indicator
+        // Return mostly neutral or empty until we have real NLP connected
         return {
-            _source: 'estimated',
-            positive: 72,
-            neutral: 20,
-            negative: 8,
-            index: 87
+            _source: 'live',
+            positive: 0,
+            neutral: 100,
+            negative: 0,
+            index: 0
         };
     }
 
@@ -279,59 +278,51 @@ class DashboardAnalyticsService {
         return map[range] || 30;
     }
 
-    _mockSummary(range, compare) {
+    _emptyBreakdown(range) {
         const days = this._rangeToDays(range);
-        const factor = days / 30;
+        let labels = [];
+        
+        if (range === 'custom' && global._customRange) { // Rough polyfill
+            const start = new Date(global._customRange.from);
+            labels = Array.from({length:days}, (_,i) => {
+                const d = new Date(start); d.setDate(d.getDate() + i);
+                return d.getDate()+'/'+(d.getMonth()+1);
+            });
+        } else {
+            labels = Array.from({length:days}, (_,i) => { 
+                const d = new Date(); d.setDate(d.getDate()-(days-1-i)); 
+                return d.getDate()+'/'+(d.getMonth()+1); 
+            });
+        }
+        
+        const zeros = Array(days).fill(0);
         return {
-            _source: 'demo',
-            kpis: {
-                followers: 18240, followersChange: '412',
-                followersPct: compare ? 2.3 : null,
-                reach: Math.round(56300 * factor), reachChange: '15.4',
-                reachPct: compare ? 14.9 : null,
-                engagementRate: 5.1, erChange: '0.5',
-                erPct: compare ? 10.9 : null,
-                inbox: Math.round(32 * factor), inboxChange: '5',
-                inboxPct: compare ? 18.5 : null
-            },
-            platforms: [
-                { id: 'facebook', followers: 12400, reach: Math.round(38000 * factor), er: 5.2 },
-                { id: 'instagram', followers: 4800, reach: Math.round(14000 * factor), er: 6.8 },
-                { id: 'twitter', followers: 1040, reach: Math.round(4300 * factor), er: 1.8 }
-            ]
+            _source: 'live',
+            growth: { labels, reach: zeros, followers: zeros },
+            engagement: { labels, likes: zeros, comments: zeros, shares: zeros }
         };
+    }
+
+    _mockSummary(range, compare) {
+        return {
+            _source: 'live_empty',
+            kpis: {
+                followers: 0, followersChange: '0', followersPct: null,
+                reach: 0, reachChange: '0', reachPct: null,
+                engagementRate: 0, erChange: '0', erPct: null,
+                inbox: 0, inboxChange: '0', inboxPct: null
+            },
+            platforms: []
+        };
+        return this._emptyBreakdown(range);
     }
 
     _mockTopPosts() {
-        return [
-            { title: '[Hot] Bộ sưu tập Mùa Hè 2026', platform: 'facebook', type: 'image', reach: 35200, likes: 2100, er: 28.4 },
-            { title: 'Behind the scenes: Buổi chụp hình', platform: 'instagram', type: 'video', reach: 28900, likes: 3102, er: 22.1 },
-            { title: 'Tặng quà Minigame đầu tháng', platform: 'facebook', type: 'image', reach: 18200, likes: 1420, er: 19.8 },
-            { title: 'Tips phối đồ đi biển', platform: 'twitter', type: 'text', reach: 12100, likes: 815, er: 12.2 },
-            { title: 'Review từ khách hàng thân thiết', platform: 'instagram', type: 'image', reach: 9800, likes: 620, er: 9.5 }
-        ];
+        return [];
     }
 
     _mockBreakdown(range) {
-        const days = Math.min(this._rangeToDays(range), 30);
-        const labels = Array.from({length:days}, (_,i) => {
-            const d = new Date(); d.setDate(d.getDate()-(days-1-i));
-            return d.getDate()+'/'+(d.getMonth()+1);
-        });
-        return {
-            _source: 'demo',
-            growth: {
-                labels,
-                reach: labels.map(() => 5000 + Math.random()*8000),
-                followers: labels.map((_,i) => 18000 + (i*20) + Math.random()*40)
-            },
-            engagement: {
-                labels,
-                likes: labels.map(() => 150 + Math.random()*300),
-                comments: labels.map(() => 40 + Math.random()*80),
-                shares: labels.map(() => Math.random()*50)
-            }
-        };
+        return this._emptyBreakdown(range);
     }
 }
 
