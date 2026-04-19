@@ -225,8 +225,8 @@ app.use((err, req, res, next) => {
     if (status === 500) console.error('[Server Error]', err);
     res.status(status).json({
         error: true,
-        message: err.message, // Always expose the message to understand Render errors
-        stack: err.stack
+        message: config.env === 'production' ? 'Internal Server Error' : err.message,
+        ...(config.env === 'development' && { stack: err.stack })
     });
 });
 
