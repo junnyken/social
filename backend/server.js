@@ -179,9 +179,22 @@ app.get('/socket.io/socket.io.js', (req, res) => {
     res.sendFile(path.join(__dirname, 'node_modules/socket.io/client-dist/socket.io.min.js'));
 });
 
+const fs = require('fs');
+
 // Explicit route for auth-callback (ensures it works even if static middleware has path issues)
 app.get('/auth-callback.html', (req, res) => {
-    res.sendFile(path.join(__dirname, '../auth-callback.html'));
+    try {
+        const filePath = path.join(__dirname, '../auth-callback.html');
+        if (fs.existsSync(filePath)) {
+            const content = fs.readFileSync(filePath, 'utf8');
+            res.setHeader('Content-Type', 'text/html');
+            res.send(content);
+        } else {
+            res.status(500).json({ error: true, message: `File not found at explicit path: ${filePath}. __dirname is ${__dirname}` });
+        }
+    } catch (e) {
+        res.status(500).json({ error: true, message: `Read error: ${e.message}`, stack: e.stack });
+    }
 });
 
 // Serve Frontend with cache headers
@@ -212,8 +225,8 @@ app.use((err, req, res, next) => {
     if (status === 500) console.error('[Server Error]', err);
     res.status(status).json({
         error: true,
-        message: config.env === 'production' ? 'Internal Server Error' : err.message,
-        ...(config.env === 'development' && { stack: err.stack })
+        message: err.message, // Always expose the message to understand Render errors
+        stack: err.stack
     });
 });
 
