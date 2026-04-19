@@ -4,6 +4,7 @@ const axios = require('axios');
 const config = require('../config');
 const cryptoService = require('../services/crypto.service');
 const dataService = require('../services/data.service');
+const { createSession } = require('../middleware/auth.middleware');
 
 // Helper: Tự động tính redirect URI từ request (hoạt động cả local lẫn production)
 function getRedirectUri(req) {
@@ -90,7 +91,8 @@ router.get('/callback', async (req, res) => {
                 postsToday: 0,
                 successRate: 100
             });
-            res.cookie('fbsession', mockId, { httpOnly: true, maxAge: 7 * 24 * 3600000 });
+            const mockSessionId = createSession(mockId, 'Mock FB User', 'owner');
+            res.cookie('fbsession', mockSessionId, { httpOnly: true, maxAge: 7 * 24 * 3600000 });
             return res.redirect('/auth-callback.html?status=success');
         }
 
@@ -154,10 +156,12 @@ router.get('/callback', async (req, res) => {
         }
         await dataService.write('accounts', allAccounts);
 
-        // Security: Set httpOnly cookie
-        res.cookie('fbsession', userData.id, {
+        // Security: Create a proper session and set httpOnly cookie
+        const sessionId = createSession(userData.id, userData.name, 'owner');
+        res.cookie('fbsession', sessionId, {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
+            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
             maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
         });
 
