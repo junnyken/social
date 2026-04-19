@@ -5,16 +5,31 @@ const config = require('../config');
 const cryptoService = require('../services/crypto.service');
 const dataService = require('../services/data.service');
 
+// Helper: Tự động tính redirect URI từ request (hoạt động cả local lẫn production)
+function getRedirectUri(req) {
+    // Ưu tiên dùng env var nếu đã set và KHÔNG phải localhost fallback
+    if (config.fb.redirectUri && !config.fb.redirectUri.includes('localhost')) {
+        return config.fb.redirectUri;
+    }
+    // Tự detect từ request
+    const protocol = req.get('x-forwarded-proto') || req.protocol;
+    const host = req.get('host');
+    return `${protocol}://${host}/api/v1/auth/callback`;
+}
+
 // 1. Provide OAuth Login URL (JSON response for fetch)
 router.get('/login-url', (req, res) => {
+    const redirectUri = getRedirectUri(req);
+    console.log('[Auth] Redirect URI:', redirectUri);
+
     // If no real App ID configured, use Mock Flow directly instead of hitting Facebook
     if (!config.fb.appId || config.fb.appId === 'MOCK_APP_ID') {
-        return res.json({ success: true, loginUrl: 'http://localhost:3000/api/v1/auth/callback?code=mock_code_123' });
+        return res.json({ success: true, loginUrl: `${redirectUri}?code=mock_code_123` });
     }
 
     const stringifiedParams = new URLSearchParams({
         client_id: config.fb.appId,
-        redirect_uri: config.fb.redirectUri,
+        redirect_uri: redirectUri,
         scope: config.fb.scopes.join(','),
         response_type: 'code',
         auth_type: 'rerequest',
@@ -27,9 +42,10 @@ router.get('/login-url', (req, res) => {
 
 // 1b. Direct redirect to FB OAuth (for full-page redirect flow)
 router.get('/login', (req, res) => {
+    const redirectUri = getRedirectUri(req);
     const stringifiedParams = new URLSearchParams({
         client_id: config.fb.appId || 'MOCK_APP_ID',
-        redirect_uri: config.fb.redirectUri,
+        redirect_uri: redirectUri,
         scope: config.fb.scopes.join(','),
         response_type: 'code',
         auth_type: 'rerequest',
@@ -79,11 +95,12 @@ router.get('/callback', async (req, res) => {
         }
 
         // Real Access Token Exchange (Short-lived)
+        const redirectUri = getRedirectUri(req);
         const tokenRes = await axios.get(`https://graph.facebook.com/${config.fb.apiVersion}/oauth/access_token`, {
             params: {
                 client_id: config.fb.appId,
                 client_secret: config.fb.appSecret,
-                redirect_uri: config.fb.redirectUri,
+                redirect_uri: redirectUri,
                 code,
             }
         });
