@@ -30,10 +30,6 @@ class FBGraphService {
                 access_token: token
             };
 
-            // In Phase 1 mock mode, we just return a simulated success if token is 'mock'
-            if (token === 'mock') {
-                return { success: true, id: `mock_post_${Date.now()}` };
-            }
 
             const response = await axios.post(endpoint, payload);
             return { success: true, id: response.data.id };
@@ -49,9 +45,7 @@ class FBGraphService {
      */
     async getAccounts(userToken) {
         try {
-            if (userToken === 'mock') {
-                return { data: [{ id: 'mock_page_1', name: 'Mock Page', access_token: 'mock' }] };
-            }
+
             const res = await axios.get(`${this.baseURL}/me/accounts?access_token=${userToken}`);
             return res.data;
         } catch(e) {

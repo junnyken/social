@@ -43,8 +43,8 @@ class DashboardAnalyticsService {
         console.log(`[DashAnalytics] getDashboardSummary — Found ${pages.length} pages for userId=${userId}`);
         
         if (pages.length === 0) {
-            console.log('[DashAnalytics] No pages found, returning mock data');
-            return this._mockSummary(range, compare);
+            console.log('[DashAnalytics] No pages found, returning zeros');
+            return this._emptySummary(range, compare);
         }
 
         let totalFollowers = 0, totalReach = 0, totalEngaged = 0, totalFollowersAdded = 0;
@@ -315,7 +315,7 @@ class DashboardAnalyticsService {
         };
     }
 
-    _mockSummary(range, compare) {
+    _emptySummary(range, compare) {
         return {
             _source: 'live_empty',
             kpis: {
@@ -326,15 +326,6 @@ class DashboardAnalyticsService {
             },
             platforms: []
         };
-        return this._emptyBreakdown(range);
-    }
-
-    _mockTopPosts() {
-        return [];
-    }
-
-    _mockBreakdown(range) {
-        return this._emptyBreakdown(range);
     }
 }
 

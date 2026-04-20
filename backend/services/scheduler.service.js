@@ -55,9 +55,8 @@ class SchedulerService {
         // Fetch queue
         const schedule = await dataService.read('schedules');
         
-        // In real app, filter where scheduledTime <= now and status == 'pending'
-        // For Phase 1 mockup, we just grab pending ones
-        const pending = schedule.filter(s => s.status === 'pending');
+        // Filter pending jobs whose scheduled time has arrived or passed
+        const pending = schedule.filter(s => s.status === 'pending' && (!s.scheduledAt || new Date(s.scheduledAt) <= new Date()));
         
         if (pending.length === 0) {
             return;
