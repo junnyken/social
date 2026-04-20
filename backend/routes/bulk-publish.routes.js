@@ -75,5 +75,32 @@ router.delete('/:id', async (req, res) => {
         res.status(500).json({ success: false, message: e.message });
     }
 });
+// Upload CSV and create campaigns from rows
+router.post('/upload-csv', async (req, res) => {
+    try {
+        const { csvData } = req.body; // Array of row objects from frontend parsing
+        if (!csvData || !Array.isArray(csvData) || csvData.length === 0) {
+            return res.status(400).json({ success: false, message: 'No CSV data provided' });
+        }
+
+        const results = [];
+        for (const row of csvData) {
+            const campaign = await bulkService.createCampaign({
+                name: row.name || row.title || `CSV Import ${results.length + 1}`,
+                text: row.text || row.content || row.message || '',
+                platforms: row.platforms ? row.platforms.split(',').map(p => p.trim()) : ['facebook'],
+                scheduledAt: row.scheduledAt || row.date || null,
+                imageUrl: row.imageUrl || row.image || null,
+                hashtags: row.hashtags ? row.hashtags.split(',').map(h => h.trim()) : [],
+                tags: ['csv-import']
+            });
+            results.push(campaign);
+        }
+
+        res.json({ success: true, data: results, imported: results.length });
+    } catch (e) {
+        res.status(400).json({ success: false, message: e.message });
+    }
+});
 
 module.exports = router;

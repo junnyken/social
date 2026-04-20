@@ -138,6 +138,73 @@ export const teamApi = {
   invite: (data) => apiFetch('/v1/team/invitations', { method: 'POST', body: JSON.stringify(data) }),
   revokeInvite: (id) => apiFetch(`/v1/team/invitations/${id}`, { method: 'DELETE' })
 };
+// ── A/B Testing ──────────────────────────────────────────────
+export const abtestApi = {
+  list: () => apiFetch('/v1/ab-tests'),
+  stats: () => apiFetch('/v1/ab-tests/stats'),
+  get: (id) => apiFetch(`/v1/ab-tests/${id}`),
+  create: (data) => apiFetch('/v1/ab-tests', { method: 'POST', body: JSON.stringify(data) }),
+  start: (id) => apiFetch(`/v1/ab-tests/${id}/start`, { method: 'POST' }),
+  updateMetrics: (id, variantId, metrics) => apiFetch(`/v1/ab-tests/${id}/variant/${variantId}/metrics`, { method: 'PUT', body: JSON.stringify(metrics) }),
+  complete: (id) => apiFetch(`/v1/ab-tests/${id}/complete`, { method: 'POST' }),
+  delete: (id) => apiFetch(`/v1/ab-tests/${id}`, { method: 'DELETE' })
+};
+
+// ── Bulk Publishing ──────────────────────────────────────────
+export const bulkApi = {
+  list: () => apiFetch('/v1/bulk-publish'),
+  stats: () => apiFetch('/v1/bulk-publish/stats'),
+  get: (id) => apiFetch(`/v1/bulk-publish/${id}`),
+  create: (data) => apiFetch('/v1/bulk-publish', { method: 'POST', body: JSON.stringify(data) }),
+  update: (id, data) => apiFetch(`/v1/bulk-publish/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  publish: (id) => apiFetch(`/v1/bulk-publish/${id}/publish`, { method: 'POST' }),
+  uploadCsv: (csvData) => apiFetch('/v1/bulk-publish/upload-csv', { method: 'POST', body: JSON.stringify({ csvData }) }),
+  delete: (id) => apiFetch(`/v1/bulk-publish/${id}`, { method: 'DELETE' })
+};
+
+// ── Evergreen Content ────────────────────────────────────────
+export const evergreenApi = {
+  list: () => apiFetch('/v1/evergreen'),
+  stats: () => apiFetch('/v1/evergreen/stats'),
+  suggest: (minER = 3, limit = 10) => apiFetch(`/v1/evergreen/suggest?minER=${minER}&limit=${limit}`),
+  get: (id) => apiFetch(`/v1/evergreen/${id}`),
+  getNextUp: (id, count = 5) => apiFetch(`/v1/evergreen/${id}/next?count=${count}`),
+  create: (data) => apiFetch('/v1/evergreen', { method: 'POST', body: JSON.stringify(data) }),
+  addPost: (queueId, data) => apiFetch(`/v1/evergreen/${queueId}/posts`, { method: 'POST', body: JSON.stringify(data) }),
+  recyclePost: (queueId, postId) => apiFetch(`/v1/evergreen/${queueId}/posts/${postId}/recycle`, { method: 'POST' }),
+  removePost: (queueId, postId) => apiFetch(`/v1/evergreen/${queueId}/posts/${postId}`, { method: 'DELETE' }),
+  toggle: (id) => apiFetch(`/v1/evergreen/${id}/toggle`, { method: 'POST' }),
+  delete: (id) => apiFetch(`/v1/evergreen/${id}`, { method: 'DELETE' })
+};
+
+// ── Social Listening ─────────────────────────────────────────
+export const listeningApi = {
+  keywords: () => apiFetch('/v1/listening/keywords'),
+  addKeyword: (term) => apiFetch('/v1/listening/keywords', { method: 'POST', body: JSON.stringify({ term }) }),
+  removeKeyword: (id) => apiFetch(`/v1/listening/keywords/${id}`, { method: 'DELETE' }),
+  mentions: (filters = {}) => {
+    const params = new URLSearchParams(filters).toString();
+    return apiFetch(`/v1/listening/mentions${params ? '?' + params : ''}`);
+  },
+  saveMention: (data) => apiFetch('/v1/listening/mentions', { method: 'POST', body: JSON.stringify(data) }),
+  sentimentSummary: () => apiFetch('/v1/listening/sentiment/summary'),
+  sentimentTrends: (range = 30) => apiFetch(`/v1/listening/sentiment/trends?range=${range}`),
+  alerts: () => apiFetch('/v1/listening/alerts'),
+  analyze: (text) => apiFetch('/v1/listening/analyze', { method: 'POST', body: JSON.stringify({ text }) })
+};
+
+// ── Link-in-Bio ──────────────────────────────────────────────
+export const bioApi = {
+  list: () => apiFetch('/v1/bio'),
+  get: (id) => apiFetch(`/v1/bio/${id}`),
+  create: (data) => apiFetch('/v1/bio', { method: 'POST', body: JSON.stringify(data) }),
+  update: (id, data) => apiFetch(`/v1/bio/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  addLink: (pageId, data) => apiFetch(`/v1/bio/${pageId}/links`, { method: 'POST', body: JSON.stringify(data) }),
+  updateLink: (pageId, linkId, data) => apiFetch(`/v1/bio/${pageId}/links/${linkId}`, { method: 'PUT', body: JSON.stringify(data) }),
+  removeLink: (pageId, linkId) => apiFetch(`/v1/bio/${pageId}/links/${linkId}`, { method: 'DELETE' }),
+  reorder: (pageId, linkIds) => apiFetch(`/v1/bio/${pageId}/reorder`, { method: 'PUT', body: JSON.stringify({ linkIds }) }),
+  delete: (id) => apiFetch(`/v1/bio/${id}`, { method: 'DELETE' })
+};
 
 // ── Generic API helper ────────────────────────────────────────
 export const api = {
