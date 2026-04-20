@@ -1,5 +1,5 @@
 // ============================================================
-// White-Label Reports UI — Ω4
+// White-Label Reports UI — Theme-Aware
 // ============================================================
 
 import { api } from '../../assets/api-client.js';
@@ -11,17 +11,41 @@ export function renderReportsUI(container) {
 
 function shell() {
     return `
-    <div style="padding:24px;max-width:1200px;margin:0 auto;font-family:'Satoshi',sans-serif;">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:28px;">
+    <div class="rpt-module">
+        <div class="rpt-header">
             <div>
-                <div style="display:inline-block;padding:4px 12px;background:rgba(245,158,11,0.15);color:#f59e0b;border-radius:20px;font-size:11px;font-weight:700;margin-bottom:8px;">📄 WHITE-LABEL</div>
-                <h1 style="font-size:26px;font-weight:700;color:#f1f5f9;margin:0;">Branded Reports</h1>
-                <p style="color:#94a3b8;font-size:14px;margin-top:4px;">Tạo báo cáo PDF branded gửi khách hàng agency</p>
+                <div class="rpt-badge">📄 WHITE-LABEL</div>
+                <h1 class="rpt-title">Branded Reports</h1>
+                <p class="rpt-subtitle">Tạo báo cáo PDF branded gửi khách hàng agency</p>
             </div>
-            <button id="gen-report-btn" style="padding:10px 20px;background:#f59e0b;color:white;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;">📄 Tạo Report Mới</button>
+            <button id="gen-report-btn" class="rpt-btn rpt-btn-amber">📄 Tạo Report Mới</button>
         </div>
         <div id="rpt-list"></div>
-    </div>`;
+    </div>
+    <style>
+    .rpt-module { padding:24px;max-width:1200px;margin:0 auto;font-family:var(--font-body,'Satoshi',sans-serif); }
+    .rpt-header { display:flex;align-items:center;justify-content:space-between;margin-bottom:28px;flex-wrap:wrap;gap:12px; }
+    .rpt-title { font-size:26px;font-weight:700;color:var(--color-text);margin:0; }
+    .rpt-subtitle { color:var(--color-text-muted);font-size:14px;margin-top:4px; }
+    .rpt-badge { display:inline-block;padding:4px 12px;background:rgba(245,158,11,0.15);color:#f59e0b;border-radius:20px;font-size:11px;font-weight:700;margin-bottom:8px; }
+    .rpt-btn { padding:10px 20px;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;transition:all 150ms; }
+    .rpt-btn:hover { filter:brightness(1.1);transform:translateY(-1px); }
+    .rpt-btn-amber { background:#f59e0b;color:white; }
+    .rpt-btn-blue { background:#3b82f6;color:white; }
+    .rpt-btn-red { background:#ef4444;color:white; }
+    .rpt-btn-ghost { background:var(--color-surface-hover);color:var(--color-text);border:1px solid var(--color-border); }
+    .rpt-btn-sm { padding:6px 14px;font-size:12px; }
+    .rpt-card { background:var(--color-surface);border:1px solid var(--color-border);border-radius:16px;padding:20px;margin-bottom:12px;transition:box-shadow 200ms;animation:rptFadeIn .3s ease; }
+    .rpt-card:hover { box-shadow:var(--shadow-md); }
+    .rpt-mini-grid { display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-top:14px; }
+    @media(max-width:768px) { .rpt-mini-grid { grid-template-columns:repeat(3,1fr); } }
+    .rpt-mini-kpi { text-align:center;padding:8px;background:var(--color-surface-hover);border-radius:8px; }
+    .rpt-mini-kpi-val { font-size:14px;font-weight:700;color:var(--color-text); }
+    .rpt-mini-kpi-label { font-size:10px;color:var(--color-text-muted); }
+    .rpt-empty { text-align:center;padding:60px;color:var(--color-text-muted); }
+    .rpt-input { padding:10px 16px;background:var(--color-surface);border:1px solid var(--color-border);border-radius:10px;color:var(--color-text);font-size:13px;outline:none; }
+    @keyframes rptFadeIn { from { opacity:0;transform:translateY(8px); } to { opacity:1;transform:translateY(0); } }
+    </style>`;
 }
 
 async function load(container) {
@@ -36,73 +60,89 @@ async function load(container) {
 
 function renderList(el, reports, container) {
     if (!reports.length) {
-        el.innerHTML = `<div style="text-align:center;padding:60px;color:#94a3b8;"><div style="font-size:48px;margin-bottom:16px;">📄</div><div style="font-size:16px;font-weight:600;">Chưa có Report nào</div><div style="font-size:13px;margin-top:4px;">Tạo report mới có branding riêng cho agency/client</div></div>`;
+        el.innerHTML = `<div class="rpt-empty"><div style="font-size:48px;margin-bottom:16px;">📄</div><div style="font-size:16px;font-weight:600;">Chưa có Report nào</div><div style="font-size:13px;margin-top:4px;">Tạo report mới có branding riêng cho agency/client</div></div>`;
         return;
     }
 
     el.innerHTML = reports.map(r => `
-    <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:16px;padding:20px;margin-bottom:12px;">
-        <div style="display:flex;align-items:center;justify-content:space-between;">
+    <div class="rpt-card">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
             <div>
-                <h3 style="margin:0;font-size:15px;color:#f1f5f9;">${r.title}</h3>
-                <div style="font-size:12px;color:#64748b;margin-top:4px;">
-                    🏢 ${r.branding.companyName} ${r.branding.clientName ? `→ 👤 ${r.branding.clientName}` : ''}
-                    · 📅 ${r.period.from} → ${r.period.to}
+                <h3 style="margin:0;font-size:15px;color:var(--color-text);">${esc(r.title)}</h3>
+                <div style="font-size:12px;color:var(--color-text-muted);margin-top:4px;">
+                    🏢 ${esc(r.branding?.companyName || '')} ${r.branding?.clientName ? `→ 👤 ${esc(r.branding.clientName)}` : ''}
+                    · 📅 ${r.period?.from || '?'} → ${r.period?.to || '?'}
                 </div>
             </div>
             <div style="display:flex;gap:8px;">
-                <a href="/api/v1/reports/${r.id}/html" target="_blank" style="padding:6px 14px;background:#3b82f6;color:white;border:none;border-radius:8px;font-size:12px;cursor:pointer;text-decoration:none;display:inline-block;">🖨️ View & Print</a>
-                <button onclick="window._delRpt('${r.id}')" style="padding:6px 14px;background:#ef4444;color:white;border:none;border-radius:8px;font-size:12px;cursor:pointer;">🗑️</button>
+                <a href="/api/v1/reports/${r.id}/html" target="_blank" class="rpt-btn rpt-btn-blue rpt-btn-sm" style="text-decoration:none;display:inline-block;">🖨️ View & Print</a>
+                <button onclick="window._delRpt('${r.id}')" class="rpt-btn rpt-btn-red rpt-btn-sm">🗑️</button>
             </div>
         </div>
-        <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-top:14px;">
-            ${miniKpi('📝', r.summary.totalPosts, 'Posts')}
-            ${miniKpi('👍', r.summary.totalLikes, 'Likes')}
-            ${miniKpi('💬', r.summary.totalComments, 'Comments')}
-            ${miniKpi('🔄', r.summary.totalShares, 'Shares')}
-            ${miniKpi('👁️', r.summary.totalReach, 'Reach')}
-            ${miniKpi('📊', r.summary.avgEngagement + '%', 'ER')}
+        <div class="rpt-mini-grid">
+            ${miniKpi('📝', r.summary?.totalPosts, 'Posts')}
+            ${miniKpi('👍', r.summary?.totalLikes, 'Likes')}
+            ${miniKpi('💬', r.summary?.totalComments, 'Comments')}
+            ${miniKpi('🔄', r.summary?.totalShares, 'Shares')}
+            ${miniKpi('👁️', r.summary?.totalReach, 'Reach')}
+            ${miniKpi('📊', (r.summary?.avgEngagement || 0) + '%', 'ER')}
         </div>
     </div>`).join('');
 
-    window._delRpt = async (id) => { if(confirm('Xóa report?')){try{await api.delete(`/reports/${id}`);load(container);}catch(e){alert(e.message);}} };
+    window._delRpt = async (id) => {
+        if (confirm('Xóa report?')) {
+            try { await api.delete(`/reports/${id}`); load(container); } catch (e) { window.Toast?.show(e.message, 'error'); }
+        }
+    };
 }
 
 function miniKpi(icon, value, label) {
-    return `<div style="text-align:center;padding:8px;background:rgba(255,255,255,0.02);border-radius:8px;"><div style="font-size:14px;">${icon}</div><div style="font-size:14px;font-weight:700;color:#f1f5f9;">${value}</div><div style="font-size:10px;color:#64748b;">${label}</div></div>`;
+    return `<div class="rpt-mini-kpi"><div style="font-size:14px;">${icon}</div><div class="rpt-mini-kpi-val">${value || 0}</div><div class="rpt-mini-kpi-label">${label}</div></div>`;
 }
 
 function showGenerateModal(container) {
     const overlay = document.createElement('div');
     overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);';
     overlay.innerHTML = `
-    <div style="background:#1a1d24;border:1px solid rgba(255,255,255,0.1);border-radius:20px;width:500px;max-height:90vh;overflow-y:auto;padding:28px;">
-        <h2 style="margin:0 0 20px;color:#f1f5f9;font-size:20px;">📄 Tạo Branded Report</h2>
+    <div style="background:var(--color-surface);border:1px solid var(--color-border);border-radius:20px;width:500px;max-height:90vh;overflow-y:auto;padding:28px;">
+        <h2 style="margin:0 0 20px;color:var(--color-text);font-size:20px;">📄 Tạo Branded Report</h2>
 
-        <label style="font-size:12px;color:#94a3b8;display:block;margin-bottom:4px;">Tiêu đề Report</label>
-        <input id="rpt-title" type="text" placeholder="VD: Monthly Social Report" style="${inputStyle()};width:100%;margin-bottom:12px;">
+        <label style="font-size:12px;color:var(--color-text-muted);display:block;margin-bottom:4px;">Tiêu đề Report</label>
+        <input id="rpt-title" type="text" placeholder="VD: Monthly Social Report" class="rpt-input" style="width:100%;margin-bottom:12px;">
 
         <div style="display:flex;gap:12px;margin-bottom:12px;">
-            <div style="flex:1;"><label style="font-size:12px;color:#94a3b8;display:block;margin-bottom:4px;">Tên Agency/Công ty</label>
-                <input id="rpt-company" type="text" placeholder="Your Agency Name" style="${inputStyle()};width:100%;"></div>
-            <div style="flex:1;"><label style="font-size:12px;color:#94a3b8;display:block;margin-bottom:4px;">Tên Khách hàng</label>
-                <input id="rpt-client" type="text" placeholder="Client Name" style="${inputStyle()};width:100%;"></div>
+            <div style="flex:1;">
+                <label style="font-size:12px;color:var(--color-text-muted);display:block;margin-bottom:4px;">Tên Agency/Công ty</label>
+                <input id="rpt-company" type="text" placeholder="Your Agency Name" class="rpt-input" style="width:100%;">
+            </div>
+            <div style="flex:1;">
+                <label style="font-size:12px;color:var(--color-text-muted);display:block;margin-bottom:4px;">Tên Khách hàng</label>
+                <input id="rpt-client" type="text" placeholder="Client Name" class="rpt-input" style="width:100%;">
+            </div>
         </div>
 
         <div style="display:flex;gap:12px;margin-bottom:12px;">
-            <div style="flex:1;"><label style="font-size:12px;color:#94a3b8;display:block;margin-bottom:4px;">Màu chủ đạo</label>
-                <input id="rpt-color" type="color" value="#1e3a5f" style="width:100%;height:36px;border:none;border-radius:8px;cursor:pointer;"></div>
-            <div style="flex:1;"><label style="font-size:12px;color:#94a3b8;display:block;margin-bottom:4px;">Màu Accent</label>
-                <input id="rpt-accent" type="color" value="#38bdf8" style="width:100%;height:36px;border:none;border-radius:8px;cursor:pointer;"></div>
-            <div style="flex:1;"><label style="font-size:12px;color:#94a3b8;display:block;margin-bottom:4px;">Khoảng thời gian</label>
-                <select id="rpt-range" style="${inputStyle()};width:100%;">
-                    <option value="7">7 ngày</option><option value="30" selected>30 ngày</option><option value="90">90 ngày</option>
-                </select></div>
+            <div style="flex:1;">
+                <label style="font-size:12px;color:var(--color-text-muted);display:block;margin-bottom:4px;">Màu chủ đạo</label>
+                <input id="rpt-color" type="color" value="#1e3a5f" style="width:100%;height:36px;border:none;border-radius:8px;cursor:pointer;">
+            </div>
+            <div style="flex:1;">
+                <label style="font-size:12px;color:var(--color-text-muted);display:block;margin-bottom:4px;">Màu Accent</label>
+                <input id="rpt-accent" type="color" value="#38bdf8" style="width:100%;height:36px;border:none;border-radius:8px;cursor:pointer;">
+            </div>
+            <div style="flex:1;">
+                <label style="font-size:12px;color:var(--color-text-muted);display:block;margin-bottom:4px;">Khoảng thời gian</label>
+                <select id="rpt-range" class="rpt-input" style="width:100%;">
+                    <option value="7">7 ngày</option>
+                    <option value="30" selected>30 ngày</option>
+                    <option value="90">90 ngày</option>
+                </select>
+            </div>
         </div>
 
         <div style="display:flex;justify-content:flex-end;gap:12px;margin-top:20px;">
-            <button id="cancel-rpt" style="padding:10px 20px;background:#6b7280;color:white;border:none;border-radius:10px;font-size:13px;cursor:pointer;">Hủy</button>
-            <button id="save-rpt" style="padding:10px 20px;background:#f59e0b;color:white;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;">📄 Tạo Report</button>
+            <button id="cancel-rpt" class="rpt-btn rpt-btn-ghost">Hủy</button>
+            <button id="save-rpt" class="rpt-btn rpt-btn-amber">📄 Tạo Report</button>
         </div>
     </div>`;
     document.body.appendChild(overlay);
@@ -120,11 +160,11 @@ function showGenerateModal(container) {
                 range: parseInt(overlay.querySelector('#rpt-range').value)
             });
             overlay.remove();
-            // Open the HTML report in new tab
             window.open(`/api/v1/reports/${res.data.id}/html`, '_blank');
             load(container);
-        } catch (e) { alert(e.message); }
+            window.Toast?.show('Report đã tạo!', 'success');
+        } catch (e) { window.Toast?.show(e.message, 'error'); }
     };
 }
 
-function inputStyle() { return 'padding:10px 16px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:10px;color:#f1f5f9;font-size:13px;outline:none;'; }
+function esc(s) { return String(s||'').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
