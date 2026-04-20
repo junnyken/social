@@ -181,6 +181,113 @@ class SchedulerService {
             });
         }
     }
+
+    // ── Evergreen Auto-Recycle ───────────────────────────────────
+    startEvergreenCron() {
+        if (this.evergreenTask) return;
+        console.log('[Scheduler] Starting Evergreen auto-recycle cron (every 2h)...');
+        this.evergreenTask = cron.schedule('0 */2 * * *', async () => {
+            await this.processEvergreen();
+        });
+        this.evergreenTask.start();
+    }
+
+    async processEvergreen() {
+        try {
+            const evergreenService = require('./evergreen.service');
+            const queues = await evergreenService.getQueues();
+            const activeQueues = queues.filter(q => q.status === 'active');
+
+            for (const queue of activeQueues) {
+                // Check if current time matches schedule
+                const now = new Date();
+                const dayOfWeek = now.getDay(); // 0=Sun
+                if (!queue.schedule?.daysOfWeek?.includes(dayOfWeek)) continue;
+
+                const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+                const matchesTimeSlot = (queue.schedule?.timesOfDay || []).some(t => {
+                    // Match within 2-hour window
+                    const [h] = t.split(':').map(Number);
+                    return Math.abs(now.getHours() - h) <= 1;
+                });
+                if (!matchesTimeSlot) continue;
+
+                // Get next eligible post
+                const nextPosts = await evergreenService.getNextUp(queue.id, 1);
+                if (nextPosts.length > 0) {
+                    try {
+                        await evergreenService.recyclePost(queue.id, nextPosts[0].id);
+                        console.log(`[Evergreen] Auto-recycled post "${nextPosts[0].content?.substring(0, 40)}..." in queue "${queue.name}"`);
+                    } catch (e) {
+                        console.warn(`[Evergreen] Recycle failed for queue "${queue.name}": ${e.message}`);
+                    }
+                }
+            }
+        } catch (e) {
+            console.error('[Evergreen] Cron error:', e.message);
+        }
+    }
+
+    // ── Listening Auto-Fetch ────────────────────────────────────
+    startListeningCron() {
+        if (this.listeningTask) return;
+        console.log('[Scheduler] Starting Listening auto-fetch cron (every 3h)...');
+        this.listeningTask = cron.schedule('0 */3 * * *', async () => {
+            await this.processListening();
+        });
+        this.listeningTask.start();
+    }
+
+    async processListening() {
+        try {
+            const listeningService = require('./listening.service');
+            const keywords = await listeningService.getKeywords();
+            if (!keywords || keywords.length === 0) return;
+
+            // Fetch recent comments from all connected pages
+            const accounts = await dataService.getAll('accounts');
+            for (const account of accounts) {
+                for (const page of (account.pages || [])) {
+                    try {
+                        const fbService = require('./fb-graph-v2.service');
+                        // Get recent posts
+                        const postsRes = await fbService.getPagePosts(page.access_token, page.id, 10);
+                        const posts = postsRes?.data || [];
+
+                        for (const post of posts) {
+                            // Get comments for each post
+                            try {
+                                const commentsRes = await fbService.getPostComments(page.access_token, post.id, 25);
+                                const comments = commentsRes?.data || [];
+
+                                for (const comment of comments) {
+                                    const text = comment.message || '';
+                                    // Check if any keyword is mentioned
+                                    for (const kw of keywords) {
+                                        if (text.toLowerCase().includes(kw.term.toLowerCase())) {
+                                            await listeningService.saveMention({
+                                                keyword: kw.term,
+                                                text: text,
+                                                platform: 'facebook',
+                                                author: comment.from?.name || 'Unknown',
+                                                url: `https://facebook.com/${post.id}`,
+                                                timestamp: comment.created_time || new Date().toISOString()
+                                            });
+                                        }
+                                    }
+                                }
+                            } catch (e) { /* skip individual post errors */ }
+                        }
+                    } catch (e) {
+                        console.warn(`[Listening] Error fetching page ${page.name}: ${e.message}`);
+                    }
+                }
+            }
+            console.log(`[Listening] Auto-fetch completed for ${keywords.length} keywords`);
+        } catch (e) {
+            console.error('[Listening] Cron error:', e.message);
+        }
+    }
 }
 
 module.exports = new SchedulerService();

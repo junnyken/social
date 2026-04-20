@@ -182,7 +182,6 @@ app.use('/api/v1/reports', require('./routes/report.routes'));
 app.use('/api/v1/bio', require('./routes/linkinbio.routes'));
 app.use('/api/v1/audit', require('./routes/audit.routes'));
 app.use('/api/v1/approval', require('./routes/client-approval.routes'));
-app.use('/api/v1/analytics-enhanced', require('./routes/analytics-enhanced.routes'));
 
 // ═══════════════════════════════════════════════════════════════
 // STATIC FILES & FRONTEND
@@ -282,6 +281,8 @@ async function startServer() {
         const schedulerService = require('./services/scheduler.service');
         schedulerService.setApp(app);
         schedulerService.start();
+        schedulerService.startEvergreenCron();
+        schedulerService.startListeningCron();
     });
 }
 

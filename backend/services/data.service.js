@@ -32,6 +32,15 @@ const COLLECTION_MAP = {
     'workflows':          Models.Workflow,
     'library':            Models.LibraryItem,
     'competitors':        Models.Competitor,
+    'ab_experiments':     Models.ABExperiment,
+    'bulk_campaigns':     Models.BulkCampaign,
+    'evergreen_queues':   Models.EvergreenQueue,
+    'listening_keywords': Models.ListeningKeyword,
+    'listening_mentions': Models.ListeningMention,
+    'linkinbio_pages':    Models.LinkInBioPage,
+    'pdf_reports':        Models.PDFReport,
+    'utm_links':          Models.UTMLink,
+    'brand_voice':        Models.BrandVoice,
 };
 
 class DataService {
@@ -175,21 +184,41 @@ class DataService {
         if (this._isMongoConnected()) {
             const Model = this._getModel(collection);
             if (Model) {
-                // For settings (object, not array)
-                if (collection === 'settings' && !Array.isArray(data)) {
+                // For settings or brand_voice (object, not array)
+                if (!Array.isArray(data)) {
                     try {
+                        const key = collection === 'brand_voice' ? 'global' : 'global';
                         await Model.findOneAndUpdate(
-                            { key: 'global' },
-                            { key: 'global', data },
+                            { key },
+                            { key, data },
                             { upsert: true }
                         );
                         return true;
                     } catch (e) {
-                        console.error(`[DataService/Mongo] write settings:`, e.message);
+                        console.error(`[DataService/Mongo] write ${collection}:`, e.message);
                     }
                 }
-                // For arrays: not ideal for bulk replace but supports legacy code
-                // We skip bulk replace for MongoDB and just write to file as backup
+                // For arrays: replace entire collection in MongoDB
+                if (Array.isArray(data)) {
+                    try {
+                        await Model.deleteMany({});
+                        if (data.length > 0) {
+                            // Ensure each doc has an 'id' field
+                            const docs = data.map(d => {
+                                const doc = { ...d };
+                                if (doc._id) delete doc._id; // prevent duplicate _id errors
+                                return doc;
+                            });
+                            await Model.insertMany(docs, { ordered: false });
+                        }
+                        // Also update file cache
+                        this.cache.set(collection, JSON.parse(JSON.stringify(data)));
+                        return true;
+                    } catch (e) {
+                        console.error(`[DataService/Mongo] write array ${collection}:`, e.message);
+                        // Fallback to file on error
+                    }
+                }
             }
         }
         return this._fileWrite(collection, data);

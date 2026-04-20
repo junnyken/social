@@ -74,7 +74,10 @@ class BulkPublishService {
         campaign.publishedAt = new Date().toISOString();
         campaign.results = [];
 
-        // Simulate publishing to each platform
+        // Get account data for tokens
+        const accounts = await dataService.getAll('accounts') || [];
+        const account = accounts[0]; // Primary account
+
         for (const platform of campaign.platforms) {
             const override = campaign.platformOverrides[platform] || {};
             const content = {
@@ -82,19 +85,75 @@ class BulkPublishService {
                 imageUrl: override.imageUrl || campaign.content.imageUrl,
                 hashtags: override.hashtags || campaign.content.hashtags
             };
+            const finalText = content.hashtags?.length
+                ? `${content.text}\n\n${content.hashtags.map(h => '#' + h).join(' ')}`
+                : content.text;
 
             try {
-                // In production: call actual platform API
-                // For now: simulate success with postId
-                const postId = `${platform}_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+                let result = { success: false, error: 'No implementation' };
+
+                switch (platform) {
+                    case 'facebook': {
+                        const fbService = require('./fb-graph-v2.service');
+                        const page = account?.pages?.[0];
+                        if (page?.access_token) {
+                            result = await fbService.publishPagePost(page.access_token, page.id, finalText, content.imageUrl);
+                        } else {
+                            result = { success: false, error: 'No Facebook page connected' };
+                        }
+                        break;
+                    }
+                    case 'instagram': {
+                        const igService = require('./instagram.service');
+                        const page = account?.pages?.[0];
+                        if (page?.access_token && content.imageUrl) {
+                            const igId = await igService.getIGAccountId(page.access_token, page.id);
+                            if (igId) {
+                                result = await igService.publishImage(page.access_token, igId, content.imageUrl, finalText);
+                            } else {
+                                result = { success: false, error: 'No IG Business Account linked' };
+                            }
+                        } else {
+                            result = { success: false, error: 'Instagram requires image + connected page' };
+                        }
+                        break;
+                    }
+                    case 'linkedin': {
+                        const liService = require('./linkedin.service');
+                        const liToken = account?.linkedinToken || account?.tokens?.linkedin;
+                        const authorUrn = account?.linkedinUrn || account?.tokens?.linkedinUrn;
+                        if (liToken && authorUrn) {
+                            if (content.imageUrl) {
+                                result = await liService.publishImagePost(liToken, authorUrn, finalText, content.imageUrl);
+                            } else {
+                                result = await liService.publishPost(liToken, authorUrn, finalText);
+                            }
+                        } else {
+                            result = { success: false, error: 'LinkedIn not connected' };
+                        }
+                        break;
+                    }
+                    case 'tiktok': {
+                        const ttService = require('./tiktok.service');
+                        const ttToken = account?.tiktokToken || account?.tokens?.tiktok;
+                        if (ttToken && content.imageUrl) {
+                            result = await ttService.publishVideo(ttToken, content.imageUrl, finalText);
+                        } else {
+                            result = { success: false, error: 'TikTok requires video + token' };
+                        }
+                        break;
+                    }
+                    default:
+                        result = { success: false, error: `Platform "${platform}" not supported` };
+                }
 
                 campaign.results.push({
                     platform,
-                    status: 'success',
-                    postId,
+                    status: result.success ? 'success' : 'failed',
+                    postId: result.id || null,
+                    error: result.error || null,
                     publishedAt: new Date().toISOString(),
-                    url: this._generatePostUrl(platform, postId),
-                    content: content.text.substring(0, 100)
+                    content: finalText.substring(0, 100)
                 });
             } catch (err) {
                 campaign.results.push({

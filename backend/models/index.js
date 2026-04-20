@@ -149,19 +149,152 @@ const CompetitorSchema = new mongoose.Schema({
     lastChecked: Date,
 }, { timestamps: true });
 
+// ── A/B Experiment ──
+const ABExperimentSchema = new mongoose.Schema({
+    id:                { type: String, unique: true },
+    name:              String,
+    description:       String,
+    platform:          { type: String, default: 'facebook' },
+    status:            { type: String, default: 'draft', enum: ['draft', 'running', 'completed', 'archived'] },
+    goal:              { type: String, default: 'engagement' },
+    trafficSplit:      { type: String, default: 'equal' },
+    duration:          { type: Number, default: 72 },
+    variants:          [mongoose.Schema.Types.Mixed],
+    winner:            String,
+    confidence:        { type: Number, default: 0 },
+    startedAt:         Date,
+    completedAt:       Date,
+    autoSelectWinner:  { type: Boolean, default: true },
+    minimumSampleSize: { type: Number, default: 100 },
+}, { timestamps: true });
+
+// ── Bulk Campaign ──
+const BulkCampaignSchema = new mongoose.Schema({
+    id:                 { type: String, unique: true },
+    name:               String,
+    description:        String,
+    status:             { type: String, default: 'draft' },
+    platforms:          [String],
+    content:            mongoose.Schema.Types.Mixed,
+    platformOverrides:  mongoose.Schema.Types.Mixed,
+    scheduledAt:        Date,
+    timezone:           { type: String, default: 'Asia/Ho_Chi_Minh' },
+    results:            [mongoose.Schema.Types.Mixed],
+    publishedAt:        Date,
+    completedAt:        Date,
+    tags:               [String],
+    utmCampaign:        String,
+}, { timestamps: true });
+
+// ── Evergreen Queue ──
+const EvergreenQueueSchema = new mongoose.Schema({
+    id:          { type: String, unique: true },
+    name:        String,
+    description: String,
+    status:      { type: String, default: 'active' },
+    platforms:   [String],
+    schedule:    mongoose.Schema.Types.Mixed,
+    rules:       mongoose.Schema.Types.Mixed,
+    posts:       [mongoose.Schema.Types.Mixed],
+    stats:       mongoose.Schema.Types.Mixed,
+}, { timestamps: true });
+
+// ── Listening Keyword ──
+const ListeningKeywordSchema = new mongoose.Schema({
+    id:           { type: String, unique: true },
+    term:         { type: String, required: true },
+    color:        String,
+    mentionCount: { type: Number, default: 0 },
+}, { timestamps: true });
+
+// ── Listening Mention ──
+const ListeningMentionSchema = new mongoose.Schema({
+    id:             { type: String, unique: true },
+    keyword:        String,
+    text:           String,
+    platform:       String,
+    author:         String,
+    url:            String,
+    sentiment:      String,
+    sentimentScore: Number,
+    timestamp:      { type: Date, default: Date.now },
+}, { timestamps: true });
+
+// ── Link-in-Bio Page ──
+const LinkInBioPageSchema = new mongoose.Schema({
+    id:           { type: String, unique: true },
+    slug:         { type: String, unique: true },
+    title:        String,
+    bio:          String,
+    avatarUrl:    String,
+    theme:        { type: String, default: 'default' },
+    customColors: mongoose.Schema.Types.Mixed,
+    links:        [mongoose.Schema.Types.Mixed],
+    socials:      mongoose.Schema.Types.Mixed,
+    analytics:    mongoose.Schema.Types.Mixed,
+    isPublished:  { type: Boolean, default: true },
+}, { timestamps: true });
+
+// ── PDF Report ──
+const PDFReportSchema = new mongoose.Schema({
+    id:                { type: String, unique: true },
+    title:             String,
+    branding:          mongoose.Schema.Types.Mixed,
+    period:            mongoose.Schema.Types.Mixed,
+    summary:           mongoose.Schema.Types.Mixed,
+    platformBreakdown: mongoose.Schema.Types.Mixed,
+    topPosts:          [mongoose.Schema.Types.Mixed],
+    dailyTrend:        mongoose.Schema.Types.Mixed,
+    recommendations:   [String],
+    format:            { type: String, default: 'html' },
+    status:            { type: String, default: 'generated' },
+    generatedAt:       Date,
+}, { timestamps: true });
+
+// ── UTM Link ──
+const UTMLinkSchema = new mongoose.Schema({
+    id:          { type: String, unique: true },
+    name:        String,
+    baseUrl:     String,
+    source:      String,
+    medium:      String,
+    campaign:    String,
+    term:        String,
+    content:     String,
+    fullUrl:     String,
+    clicks:      { type: Number, default: 0 },
+    tags:        [String],
+}, { timestamps: true });
+
+// ── Brand Voice ──
+const BrandVoiceSchema = new mongoose.Schema({
+    key:   { type: String, unique: true, default: 'global' },
+    data:  mongoose.Schema.Types.Mixed,
+}, { timestamps: true });
+
 // ── Export all models ──
 module.exports = {
-    Account:       mongoose.model('Account', AccountSchema),
-    QueueItem:     mongoose.model('QueueItem', QueueItemSchema),
-    Log:           mongoose.model('Log', LogSchema),
-    Contact:       mongoose.model('Contact', ContactSchema),
-    InboxMessage:  mongoose.model('InboxMessage', InboxMessageSchema),
-    AuditLog:      mongoose.model('AuditLog', AuditLogSchema),
-    Schedule:      mongoose.model('Schedule', ScheduleSchema),
-    Settings:      mongoose.model('Settings', SettingsSchema),
-    Notification:  mongoose.model('Notification', NotificationSchema),
-    TeamMember:    mongoose.model('TeamMember', TeamMemberSchema),
-    Workflow:      mongoose.model('Workflow', WorkflowSchema),
-    LibraryItem:   mongoose.model('LibraryItem', LibraryItemSchema),
-    Competitor:    mongoose.model('Competitor', CompetitorSchema),
+    Account:          mongoose.model('Account', AccountSchema),
+    QueueItem:        mongoose.model('QueueItem', QueueItemSchema),
+    Log:              mongoose.model('Log', LogSchema),
+    Contact:          mongoose.model('Contact', ContactSchema),
+    InboxMessage:     mongoose.model('InboxMessage', InboxMessageSchema),
+    AuditLog:         mongoose.model('AuditLog', AuditLogSchema),
+    Schedule:         mongoose.model('Schedule', ScheduleSchema),
+    Settings:         mongoose.model('Settings', SettingsSchema),
+    Notification:     mongoose.model('Notification', NotificationSchema),
+    TeamMember:       mongoose.model('TeamMember', TeamMemberSchema),
+    Workflow:         mongoose.model('Workflow', WorkflowSchema),
+    LibraryItem:      mongoose.model('LibraryItem', LibraryItemSchema),
+    Competitor:       mongoose.model('Competitor', CompetitorSchema),
+    ABExperiment:     mongoose.model('ABExperiment', ABExperimentSchema),
+    BulkCampaign:     mongoose.model('BulkCampaign', BulkCampaignSchema),
+    EvergreenQueue:   mongoose.model('EvergreenQueue', EvergreenQueueSchema),
+    ListeningKeyword: mongoose.model('ListeningKeyword', ListeningKeywordSchema),
+    ListeningMention: mongoose.model('ListeningMention', ListeningMentionSchema),
+    LinkInBioPage:    mongoose.model('LinkInBioPage', LinkInBioPageSchema),
+    PDFReport:        mongoose.model('PDFReport', PDFReportSchema),
+    UTMLink:          mongoose.model('UTMLink', UTMLinkSchema),
+    BrandVoice:       mongoose.model('BrandVoice', BrandVoiceSchema),
 };
+

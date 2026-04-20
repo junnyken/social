@@ -246,6 +246,29 @@ class FBGraphService {
             return { heatmap: {}, bestTimes: [], error: error.message };
         }
     }
+
+    // ── Page Posts & Comments (for Listening) ─────────────────
+    async getPagePosts(token, pageId, limit = 10) {
+        try {
+            const url = `${this.baseUrl}/${pageId}/posts?fields=id,message,created_time&limit=${limit}&access_token=${token}`;
+            const res = await axios.get(url);
+            return res.data;
+        } catch (e) {
+            console.error('[FB Graph] getPagePosts Error:', e.response?.data || e.message);
+            return { data: [] };
+        }
+    }
+
+    async getPostComments(token, postId, limit = 25) {
+        try {
+            const url = `${this.baseUrl}/${postId}/comments?fields=id,message,from,created_time&limit=${limit}&access_token=${token}`;
+            const res = await axios.get(url);
+            return res.data;
+        } catch (e) {
+            console.error('[FB Graph] getPostComments Error:', e.response?.data || e.message);
+            return { data: [] };
+        }
+    }
 }
 
 module.exports = new FBGraphService();
