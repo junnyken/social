@@ -94,7 +94,19 @@ export const geminiApi = {
     apiFetch('/v1/ai/brand-voice', { method: 'PUT', body: JSON.stringify(data) }),
 };
 
-// ── Facebook ──────────────────────────────────────────────────
+// ── Cross-Platform (Unified Publisher) ────────────────────────
+export const crossPlatformApi = {
+  publish: (platforms, content, images = [], pageId = null) =>
+    apiFetch('/v1/cross-platform/publish', {
+      method: 'POST',
+      body: JSON.stringify({ platforms, content, images, pageId })
+    }),
+  accounts: () => apiFetch('/v1/cross-platform/accounts'),
+  summary: () => apiFetch('/v1/cross-platform/summary'),
+  compare: (platforms) => apiFetch(`/v1/cross-platform/compare?platforms=${platforms.join(',')}`)
+};
+
+// ── Facebook (Legacy direct) ─────────────────────────────────
 export const facebookApi = {
   post: (pageId, accessToken, message, imageUrl = null) =>
     apiFetch('/proxy/facebook/post', {
@@ -103,20 +115,11 @@ export const facebookApi = {
     })
 };
 
-// ── Instagram ─────────────────────────────────────────────────
-export const instagramApi = {
-  post: (igUserId, accessToken, imageUrl, caption) =>
-    apiFetch('/proxy/instagram/post', {
-      method: 'POST',
-      body: JSON.stringify({ igUserId, accessToken, imageUrl, caption })
-    })
-};
-
-// ── Twitter ───────────────────────────────────────────────────
-export const twitterApi = {
-  tweet: (accessToken, text, mediaIds = []) =>
-    apiFetch('/proxy/twitter/tweet', {
-      method: 'POST',
-      body: JSON.stringify({ accessToken, text, mediaIds })
-    })
+// ── Generic API helper ────────────────────────────────────────
+export const api = {
+  get: (path) => apiFetch('/v1' + path),
+  post: (path, data) => apiFetch('/v1' + path, { method: 'POST', body: JSON.stringify(data) }),
+  put: (path, data) => apiFetch('/v1' + path, { method: 'PUT', body: JSON.stringify(data) }),
+  patch: (path, data) => apiFetch('/v1' + path, { method: 'PATCH', body: JSON.stringify(data) }),
+  delete: (path) => apiFetch('/v1' + path, { method: 'DELETE' })
 };

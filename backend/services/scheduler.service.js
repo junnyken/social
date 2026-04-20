@@ -98,9 +98,50 @@ class SchedulerService {
             // Artificial delay to look human
             await delaySvc.sleepForType('pagePost');
             
-            // Send to FB using real token
+            // Send to correct platform based on target.platform
             const pageToken = page.access_token;
-            const result = await fbGraphV2.publishPagePost(pageToken, job.target.id, finalContent, job.images?.[0]);
+            const platform = job.target?.platform || 'facebook';
+            let result;
+
+            switch (platform) {
+                case 'instagram': {
+                    const igService = require('./instagram.service');
+                    const igId = await igService.getIGAccountId(pageToken, job.target.id);
+                    if (!igId) { result = { success: false, error: 'No IG Business Account linked to this Page' }; break; }
+                    if (job.images?.length > 1) {
+                        result = await igService.publishCarousel(pageToken, igId, job.images, finalContent);
+                    } else if (job.images?.[0]) {
+                        result = await igService.publishImage(pageToken, igId, job.images[0], finalContent);
+                    } else {
+                        result = { success: false, error: 'Instagram requires at least 1 image or video' };
+                    }
+                    break;
+                }
+                case 'linkedin': {
+                    const liService = require('./linkedin.service');
+                    const liToken = account.linkedinToken || account.tokens?.linkedin;
+                    const authorUrn = account.linkedinUrn || account.tokens?.linkedinUrn;
+                    if (!liToken || !authorUrn) { result = { success: false, error: 'LinkedIn not connected' }; break; }
+                    if (job.images?.[0]) {
+                        result = await liService.publishImagePost(liToken, authorUrn, finalContent, job.images[0]);
+                    } else {
+                        result = await liService.publishPost(liToken, authorUrn, finalContent);
+                    }
+                    break;
+                }
+                case 'tiktok': {
+                    const ttService = require('./tiktok.service');
+                    const ttToken = account.tiktokToken || account.tokens?.tiktok;
+                    if (!ttToken) { result = { success: false, error: 'TikTok not connected' }; break; }
+                    if (!job.images?.[0]) { result = { success: false, error: 'TikTok requires a video URL' }; break; }
+                    result = await ttService.publishVideo(ttToken, job.images[0], finalContent);
+                    break;
+                }
+                case 'facebook':
+                default:
+                    result = await fbGraphV2.publishPagePost(pageToken, job.target.id, finalContent, job.images?.[0]);
+                    break;
+            }
             
             if (result.success) {
                 // Update schedule status

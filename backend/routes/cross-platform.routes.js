@@ -91,4 +91,154 @@ router.get('/compare', async (req, res) => {
     }
 });
 
+// ═══════════════════════════════════════════════════════════════
+// UNIFIED MULTI-PLATFORM PUBLISH
+// ═══════════════════════════════════════════════════════════════
+
+// POST /cross-platform/publish — Publish to multiple platforms at once
+router.post('/publish', async (req, res) => {
+    try {
+        const { platforms, content, images, pageId, scheduledAt } = req.body;
+        if (!platforms?.length || !content) {
+            return res.status(400).json({ success: false, message: 'platforms[] and content are required' });
+        }
+
+        const accounts = await dataService.getAll('accounts') || [];
+        const account = accounts.find(a => a.id === req.user?.id) || accounts[0];
+        if (!account) return res.status(400).json({ success: false, message: 'No account found' });
+
+        const page = (account.pages || []).find(p => p.id === (pageId || account.pages?.[0]?.id));
+        if (!page) return res.status(400).json({ success: false, message: 'No page found' });
+
+        const results = {};
+
+        for (const platform of platforms) {
+            try {
+                switch (platform) {
+                    case 'facebook': {
+                        const fbGraphV2 = require('../services/fb-graph-v2.service');
+                        results.facebook = await fbGraphV2.publishPagePost(page.access_token, page.id, content, images?.[0]);
+                        break;
+                    }
+                    case 'instagram': {
+                        const igService = require('../services/instagram.service');
+                        const igId = await igService.getIGAccountId(page.access_token, page.id);
+                        if (!igId) { results.instagram = { success: false, error: 'No IG Business Account linked' }; break; }
+                        if (!images?.length) { results.instagram = { success: false, error: 'Instagram requires at least 1 image' }; break; }
+                        if (images.length > 1) {
+                            results.instagram = await igService.publishCarousel(page.access_token, igId, images, content);
+                        } else {
+                            results.instagram = await igService.publishImage(page.access_token, igId, images[0], content);
+                        }
+                        break;
+                    }
+                    case 'linkedin': {
+                        const liService = require('../services/linkedin.service');
+                        const liToken = account.linkedinToken || account.tokens?.linkedin;
+                        const authorUrn = account.linkedinUrn || account.tokens?.linkedinUrn;
+                        if (!liToken || !authorUrn) { results.linkedin = { success: false, error: 'LinkedIn not connected. Go to Settings → Integrations.' }; break; }
+                        if (images?.[0]) {
+                            results.linkedin = await liService.publishImagePost(liToken, authorUrn, content, images[0]);
+                        } else {
+                            results.linkedin = await liService.publishPost(liToken, authorUrn, content);
+                        }
+                        break;
+                    }
+                    case 'tiktok': {
+                        const ttService = require('../services/tiktok.service');
+                        const ttToken = account.tiktokToken || account.tokens?.tiktok;
+                        if (!ttToken) { results.tiktok = { success: false, error: 'TikTok not connected. Go to Settings → Integrations.' }; break; }
+                        if (!images?.[0]) { results.tiktok = { success: false, error: 'TikTok requires a video URL' }; break; }
+                        results.tiktok = await ttService.publishVideo(ttToken, images[0], content);
+                        break;
+                    }
+                    default:
+                        results[platform] = { success: false, error: `Platform "${platform}" not supported` };
+                }
+            } catch (e) {
+                results[platform] = { success: false, error: e.message };
+            }
+        }
+
+        const successCount = Object.values(results).filter(r => r.success).length;
+        res.json({
+            success: true,
+            data: {
+                results,
+                summary: `Published to ${successCount}/${platforms.length} platforms`,
+                publishedAt: new Date().toISOString()
+            }
+        });
+    } catch (e) {
+        res.status(500).json({ success: false, message: e.message });
+    }
+});
+
+// GET /cross-platform/accounts — List connected accounts
+router.get('/accounts', async (req, res) => {
+    try {
+        const accounts = await dataService.getAll('accounts') || [];
+        const account = accounts.find(a => a.id === req.user?.id) || accounts[0];
+        if (!account) return res.json({ success: true, data: [] });
+
+        const connected = [];
+
+        // Facebook Pages
+        (account.pages || []).forEach(p => {
+            connected.push({
+                platform: 'facebook',
+                id: p.id,
+                name: p.name,
+                type: 'page',
+                connected: true,
+                avatar: `https://graph.facebook.com/${p.id}/picture?type=small`
+            });
+        });
+
+        // Instagram (auto-detect from FB pages)
+        for (const p of (account.pages || [])) {
+            try {
+                const igService = require('../services/instagram.service');
+                const igId = await igService.getIGAccountId(p.access_token, p.id);
+                if (igId) {
+                    connected.push({
+                        platform: 'instagram',
+                        id: igId,
+                        name: `IG linked to ${p.name}`,
+                        type: 'business',
+                        connected: true,
+                        linkedFBPage: p.id
+                    });
+                }
+            } catch {}
+        }
+
+        // LinkedIn
+        if (account.linkedinToken || account.tokens?.linkedin) {
+            connected.push({
+                platform: 'linkedin',
+                id: account.linkedinUrn || 'linked',
+                name: account.linkedinName || 'LinkedIn Profile',
+                type: 'profile',
+                connected: true
+            });
+        }
+
+        // TikTok
+        if (account.tiktokToken || account.tokens?.tiktok) {
+            connected.push({
+                platform: 'tiktok',
+                id: 'tiktok',
+                name: account.tiktokName || 'TikTok Account',
+                type: 'creator',
+                connected: true
+            });
+        }
+
+        res.json({ success: true, data: connected });
+    } catch (e) {
+        res.status(500).json({ success: false, message: e.message });
+    }
+});
+
 module.exports = router;
