@@ -35,18 +35,15 @@ export async function renderPageSelector(container, onChange, options = {}) {
   const pages = await fetchConnectedPages();
   const currentId = getSelectedPageId();
 
-  // If no pages, hide the selector to avoid confusion
-  if (!pages || pages.length === 0) {
-    container.innerHTML = '';
-    return;
-  }
+  // If no pages, we still show the dropdown to indicate the feature exists
+  const hasPages = pages && pages.length > 0;
 
   const dropdownHTML = `
     <div style="display:flex; align-items:center; gap:8px;">
       <i data-lucide="filter" width="16" height="16" style="color:var(--color-text-muted)"></i>
-      <select class="field-select page-filter-dropdown" style="min-width:200px; min-height:36px; ${options.style || ''}">
-        <option value="all">🌐 Tất cả Pages</option>
-        ${pages.map(p => `<option value="${p.id}" ${currentId === p.id ? 'selected' : ''}>📄 ${p.name || p.id}</option>`).join('')}
+      <select class="field-select page-filter-dropdown" style="min-width:200px; min-height:36px; ${options.style || ''}" ${!hasPages ? 'disabled' : ''}>
+        <option value="all">🌐 Tất cả Pages ${!hasPages ? '(Chưa kết nối)' : ''}</option>
+        ${hasPages ? pages.map(p => `<option value="${p.id}" ${currentId === p.id ? 'selected' : ''}>📄 ${p.name || p.id}</option>`).join('') : ''}
       </select>
     </div>
   `;
