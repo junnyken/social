@@ -7,7 +7,7 @@ class GeminiService {
         const apiKey = process.env.GEMINI_API_KEY || config.gemini?.apiKey;
         if (apiKey) {
             this.genAI = new GoogleGenerativeAI(apiKey);
-            this.model = this.genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+            this.model = this.genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
         } else {
             console.warn('[Gemini] No API Key found, AI features will be disabled/mocked.');
         }
