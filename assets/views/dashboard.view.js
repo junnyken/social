@@ -1,4 +1,5 @@
 import { Logs, Queue, api, onEvent, offEvent } from '../api-client.js';
+import { renderPageSelector, getSelectedPageId } from '../components/page-selector.js';
 
 let _activeRange = '30d';
 let _compareMode = false;
@@ -34,6 +35,7 @@ export async function renderDashboard(container) {
                 <button id="dash-custom-range-btn" style="padding:6px 14px; border-radius:8px; border:1px solid ${_customRange ? 'var(--color-primary)' : 'var(--border)'}; background:${_customRange ? 'var(--color-primary)' : 'transparent'}; color:${_customRange ? '#fff' : 'var(--text-muted)'}; font-size:12px; font-weight:600; cursor:pointer;">📅 Tùy chọn</button>
             </div>
             <div style="display:flex; align-items:center; gap:8px;">
+                <div id="dash-page-selector-container"></div>
                 <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:12px; color:var(--text-muted); padding:6px 12px; border-radius:8px; border:1px solid var(--border); background:var(--surface-hover);">
                     <input type="checkbox" id="dash-compare-toggle" style="accent-color:var(--color-primary); cursor:pointer;" ${_compareMode ? 'checked' : ''}>
                     <i data-lucide="git-compare" width="14" height="14"></i>
@@ -143,8 +145,11 @@ export async function renderDashboard(container) {
       // Refresh lucide icons
       setTimeout(() => { if (window.lucide) window.lucide.createIcons(); }, 0);
       
+      const pageSelectorContainer = container.querySelector('#dash-page-selector-container');
+      renderPageSelector(pageSelectorContainer, () => renderDashboard(container));
+      
       // Fetch data with range param
-      const rangeParam = `range=${_activeRange}&compare=${_compareMode}`;
+      const rangeParam = `range=${_activeRange}&compare=${_compareMode}&pageId=${getSelectedPageId()}`;
       const [summaryRes, topPostsRes, sentimentRes, breakdownRes, logsData] = await Promise.all([
          api.get(`/analytics-enhanced/dashboard-summary?${rangeParam}`).catch(() => ({data: null})),
          api.get(`/analytics-enhanced/post-performance?limit=5&${rangeParam}`).catch(() => ({data: null})),

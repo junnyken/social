@@ -10,6 +10,7 @@ import {
   INDUSTRY_BENCHMARKS, fetchAnalyticsAPI
 } from './analytics-store.js';
 import { getPages } from '../facebook/fb-auth.js';
+import { renderPageSelector, getSelectedPageId } from '../../assets/components/page-selector.js';
 
 import {
   createReachChart, createFollowerGrowthChart, createEngagementChart,
@@ -27,6 +28,10 @@ let activeTab = 'overview';
 export function renderAnalytics(container) {
   container.innerHTML = getAnalyticsHTML();
   bindAnalyticsEvents(container);
+  const pageContainer = container.querySelector('#analytics-page-selector-container');
+  if (pageContainer) {
+    renderPageSelector(pageContainer, () => renderAnalyticsTab(container, activeTab));
+  }
   renderAnalyticsTab(container, activeTab);
   if (window.refreshIcons) window.refreshIcons();
 }
@@ -41,6 +46,7 @@ function getAnalyticsHTML() {
         <p class="page-subtitle">Đánh giá hiệu quả trang &amp; nội dung</p>
       </div>
       <div class="analytics-controls">
+        <div id="analytics-page-selector-container" style="display:inline-flex; align-items:center; margin-right:8px;"></div>
         <div class="platform-filter-row" id="platform-filter-row">
           <button class="pf-btn active" data-platform="all">Tất cả</button>
           <button class="pf-btn" data-platform="facebook"><span style="color:#1877F2">●</span> Facebook</button>
@@ -97,10 +103,11 @@ async function renderOverview(container) {
   // Fetch real data from enhanced dashboard API
   let summary = null;
   let topPostsData = [];
+  const pageId = getSelectedPageId();
   try {
     const [summaryRes, topPostsRes] = await Promise.all([
-      fetch(`/api/v1/analytics-enhanced/dashboard-summary?range=${activeRange}`, { credentials: 'include' }).then(r => r.json()).catch(() => null),
-      fetch(`/api/v1/analytics-enhanced/post-performance?limit=8&range=${activeRange}`, { credentials: 'include' }).then(r => r.json()).catch(() => null)
+      fetch(`/api/v1/analytics-enhanced/dashboard-summary?range=${activeRange}&pageId=${pageId}`, { credentials: 'include' }).then(r => r.json()).catch(() => null),
+      fetch(`/api/v1/analytics-enhanced/post-performance?limit=8&range=${activeRange}&pageId=${pageId}`, { credentials: 'include' }).then(r => r.json()).catch(() => null)
     ]);
     summary = summaryRes?.data || null;
     topPostsData = topPostsRes?.data || [];
@@ -156,7 +163,7 @@ async function renderOverview(container) {
   // Render charts with real breakdown data
   let breakdownData = null;
   try {
-    const bdRes = await fetch(`/api/v1/analytics-enhanced/engagement-breakdown?range=${activeRange}`, { credentials: 'include' }).then(r => r.json()).catch(() => null);
+    const bdRes = await fetch(`/api/v1/analytics-enhanced/engagement-breakdown?range=${activeRange}&pageId=${pageId}`, { credentials: 'include' }).then(r => r.json()).catch(() => null);
     breakdownData = bdRes?.data || null;
   } catch (e) { /* ignore */ }
 

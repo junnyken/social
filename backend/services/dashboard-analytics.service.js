@@ -35,8 +35,11 @@ class DashboardAnalyticsService {
      * Dashboard Summary — KPIs + Platform breakdown
      * Tries real FB API, falls back to mock
      */
-    async getDashboardSummary(userId, range = '30d', compare = false) {
-        const pages = await this.getConnectedPages(userId);
+    async getDashboardSummary(userId, range = '30d', compare = false, pageId = null) {
+        let pages = await this.getConnectedPages(userId);
+        if (pageId && pageId !== 'all') {
+            pages = pages.filter(p => p.id === pageId);
+        }
         console.log(`[DashAnalytics] getDashboardSummary — Found ${pages.length} pages for userId=${userId}`);
         
         if (pages.length === 0) {
@@ -148,8 +151,11 @@ class DashboardAnalyticsService {
     /**
      * Top Performing Posts — ranked by engagement
      */
-    async getTopPosts(userId, limit = 5) {
-        const pages = await this.getConnectedPages(userId);
+    async getTopPosts(userId, limit = 5, pageId = null) {
+        let pages = await this.getConnectedPages(userId);
+        if (pageId && pageId !== 'all') {
+            pages = pages.filter(p => p.id === pageId);
+        }
         
         if (pages.length === 0) {
             return [];
@@ -201,8 +207,11 @@ class DashboardAnalyticsService {
     /**
      * Engagement breakdown over time
      */
-    async getEngagementBreakdown(userId, range = '30d') {
-        const pages = await this.getConnectedPages(userId);
+    async getEngagementBreakdown(userId, range = '30d', pageId = null) {
+        let pages = await this.getConnectedPages(userId);
+        if (pageId && pageId !== 'all') {
+            pages = pages.filter(p => p.id === pageId);
+        }
         
         if (pages.length === 0) {
             return this._emptyBreakdown(range);
@@ -261,7 +270,7 @@ class DashboardAnalyticsService {
     /**
      * Simple sentiment from comments
      */
-    async getSentiment(userId) {
+    async getSentiment(userId, pageId = null) {
         // Return mostly neutral or empty until we have real NLP connected
         return {
             _source: 'live',

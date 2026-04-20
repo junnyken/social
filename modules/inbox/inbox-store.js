@@ -42,6 +42,7 @@ export function getMessages(filters = {}) {
   if (filters.type) result = result.filter(m => m.type === filters.type);
   if (filters.status === 'unread') result = result.filter(m => !m.read);
   if (filters.status === 'done') result = result.filter(m => m.status === 'done');
+  if (filters.pageId && filters.pageId !== 'all') result = result.filter(m => m.pageId === filters.pageId || m.accountId === filters.pageId || m.targetId === filters.pageId);
   if (filters.search) {
     const q = filters.search.toLowerCase();
     result = result.filter(m => m.text.toLowerCase().includes(q) || m.from.toLowerCase().includes(q));

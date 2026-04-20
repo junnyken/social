@@ -7,6 +7,7 @@ import { startInboxPolling } from './inbox-fetcher.js';
 import { PLATFORMS } from '../platforms/platform-registry.js';
 import { getPages } from '../facebook/fb-auth.js';
 import { renderContactPanel } from './contact-panel.js';
+import { renderPageSelector, getSelectedPageId } from '../../assets/components/page-selector.js';
 
 const PLATFORM_COLORS = { facebook: '#1877F2', instagram: '#E1306C', twitter: '#1DA1F2', linkedin: '#0077B5' };
 
@@ -15,7 +16,7 @@ export function renderInbox(container) {
   if (window.refreshIcons) window.refreshIcons();
 
   let activeMessage = null;
-  let filters = { platform: '', type: '', status: '', search: '' };
+  let filters = { platform: '', type: '', status: '', search: '', pageId: 'all' };
 
   startInboxPolling((newCount) => {
     if (window.Toast) window.Toast.show(`📬 ${newCount} tin nhắn mới`, 'info');
@@ -24,6 +25,15 @@ export function renderInbox(container) {
   });
 
   onUpdate(() => { refreshList(); updateBadge(); });
+  
+  const pageContainer = container.querySelector('#inbox-page-selector-container');
+  if (pageContainer) {
+    renderPageSelector(pageContainer, (pageId) => {
+      filters.pageId = pageId;
+      refreshList();
+    });
+    filters.pageId = getSelectedPageId();
+  }
 
   function refreshList() {
     const msgs = getMessages(filters);
@@ -254,6 +264,7 @@ function getInboxHTML() {
 
       <div class="inbox-filters">
         <input type="search" id="inbox-search" class="inbox-search" placeholder="🔍 Tìm kiếm..."/>
+        <div id="inbox-page-selector-container"></div>
         <div class="filter-chips">
           <button class="filter-chip active" data-filter-platform="">Tất cả</button>
           <button class="filter-chip" data-filter-platform="facebook" style="--chip-color:#1877F2">Facebook</button>

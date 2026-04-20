@@ -8,7 +8,8 @@ export async function renderLogs(container) {
         <div class="flex-col">
             <div class="flex-between"><h2>Activity Logs</h2><button class="btn btn-secondary btn-md" id="btn-export"><i data-lucide="download" width="16" height="16"></i> Export CSV</button></div>
             <div class="card" style="padding:var(--space-4)">
-                <div style="display:flex;gap:var(--space-3);flex-wrap:wrap;margin-bottom:var(--space-4)">
+                <div style="display:flex;gap:var(--space-3);flex-wrap:wrap;margin-bottom:var(--space-4);align-items:center;">
+                    <div id="logs-page-selector-container"></div>
                     <input class="field-input" style="width:200px;min-height:36px" placeholder="Search content..." id="log-search">
                     <select class="field-select" style="width:140px;min-height:36px" id="log-status-filter"><option value="">All Statuses</option><option value="success">Success</option><option value="pending">Pending</option><option value="failed">Failed</option></select>
                     <select class="field-select" style="width:180px;min-height:36px" id="log-account-filter"><option value="">All Accounts</option></select>
@@ -22,9 +23,20 @@ export async function renderLogs(container) {
         </div>
   `;
 
-  await fetchAndRenderLogs();
+  import('../components/page-selector.js').then(({ renderPageSelector, getSelectedPageId }) => {
+    const pageContainer = container.querySelector('#logs-page-selector-container');
+    if (pageContainer) {
+      renderPageSelector(pageContainer, (pageId) => {
+        currentFilters.pageId = pageId;
+        currentFilters.page = 0;
+        fetchAndRenderLogs();
+      });
+      currentFilters.pageId = getSelectedPageId();
+    }
+    fetchAndRenderLogs();
+  }).catch(() => fetchAndRenderLogs());
 
-  document.getElementById('log-search').addEventListener('input', e => { currentFilters.q = e.target.value.toLowerCase(); fetchAndRenderLogs(); });
+  document.getElementById('log-search').addEventListener('input', e => { currentFilters.q = e.target.value.toLowerCase(); currentFilters.page = 0; fetchAndRenderLogs(); });
   document.getElementById('log-status-filter').addEventListener('change', e => { currentFilters.status = e.target.value; fetchAndRenderLogs(); });
   document.getElementById('log-account-filter').addEventListener('change', e => { currentFilters.accountId = e.target.value; fetchAndRenderLogs(); });
   document.getElementById('btn-export').addEventListener('click', () => Logs.export(currentFilters));
@@ -42,6 +54,7 @@ async function fetchAndRenderLogs() {
         if(currentFilters.q) logs = logs.filter(l => l.content.toLowerCase().includes(currentFilters.q) || l.target?.name?.toLowerCase().includes(currentFilters.q));
         if(currentFilters.status) logs = logs.filter(l => l.status === currentFilters.status);
         if(currentFilters.accountId) logs = logs.filter(l => l.accountId === currentFilters.accountId);
+        if(currentFilters.pageId && currentFilters.pageId !== 'all') logs = logs.filter(l => l.pageId === currentFilters.pageId || l.target?.id === currentFilters.pageId);
         
         const start = currentFilters.page * currentFilters.limit;
         const slice = logs.slice(start, start + currentFilters.limit);

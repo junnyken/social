@@ -11,11 +11,12 @@ const dashAnalytics = require('../services/dashboard-analytics.service');
 // GET /api/v1/analytics-enhanced/dashboard-summary
 router.get('/dashboard-summary', requireAuth, async (req, res) => {
     try {
-        const { range, compare } = req.query;
+        const { range, compare, pageId } = req.query;
         const data = await dashAnalytics.getDashboardSummary(
             req.user?.id, 
             range || '30d', 
-            compare === 'true'
+            compare === 'true',
+            pageId
         );
         res.json({ success: true, data });
     } catch (e) {
@@ -28,7 +29,8 @@ router.get('/dashboard-summary', requireAuth, async (req, res) => {
 router.get('/post-performance', requireAuth, async (req, res) => {
     try {
         const limit = parseInt(req.query.limit) || 5;
-        const data = await dashAnalytics.getTopPosts(req.user?.id, limit);
+        const { pageId } = req.query;
+        const data = await dashAnalytics.getTopPosts(req.user?.id, limit, pageId);
         res.json({ success: true, data });
     } catch (e) {
         console.error('[Analytics Enhanced] post-performance error:', e.message);
@@ -39,7 +41,8 @@ router.get('/post-performance', requireAuth, async (req, res) => {
 // GET /api/v1/analytics-enhanced/sentiment
 router.get('/sentiment', requireAuth, async (req, res) => {
     try {
-        const data = await dashAnalytics.getSentiment(req.user?.id);
+        const { pageId } = req.query;
+        const data = await dashAnalytics.getSentiment(req.user?.id, pageId);
         res.json({ success: true, data });
     } catch (e) {
         console.error('[Analytics Enhanced] sentiment error:', e.message);
@@ -50,8 +53,8 @@ router.get('/sentiment', requireAuth, async (req, res) => {
 // GET /api/v1/analytics-enhanced/engagement-breakdown
 router.get('/engagement-breakdown', requireAuth, async (req, res) => {
     try {
-        const { range } = req.query;
-        const data = await dashAnalytics.getEngagementBreakdown(req.user?.id, range || '30d');
+        const { range, pageId } = req.query;
+        const data = await dashAnalytics.getEngagementBreakdown(req.user?.id, range || '30d', pageId);
         res.json({ success: true, data });
     } catch (e) {
         console.error('[Analytics Enhanced] engagement-breakdown error:', e.message);
