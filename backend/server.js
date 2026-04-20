@@ -164,6 +164,7 @@ app.use('/api/v1/queue', require('./routes/queue.routes'));
 app.use('/api/v1/logs', require('./routes/logs.routes'));
 app.use('/api/v1/config', require('./routes/config.routes'));
 app.use('/api/v1/analytics', require('./routes/analytics.routes'));
+app.use('/api/v1/analytics-enhanced', require('./routes/analytics-enhanced.routes'));
 app.use('/api/v1/listening', require('./routes/listening.routes'));
 app.use('/api/v1/workflow', require('./routes/workflow.routes'));
 app.use('/api/v1/team', require('./routes/team.routes'));
