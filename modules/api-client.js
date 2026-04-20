@@ -115,6 +115,30 @@ export const facebookApi = {
     })
 };
 
+// ── Agency & Workspace ───────────────────────────────────────
+export const agencyApi = {
+  dashboard: () => apiFetch('/v1/agency/dashboard'),
+  workspaces: () => apiFetch('/v1/agency/workspaces'),
+  createWorkspace: (data) => apiFetch('/v1/agency/workspaces', { method: 'POST', body: JSON.stringify(data) }),
+  updateWorkspace: (id, data) => apiFetch(`/v1/agency/workspaces/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  deleteWorkspace: (id) => apiFetch(`/v1/agency/workspaces/${id}`, { method: 'DELETE' }),
+  switchWorkspace: (id) => apiFetch(`/v1/agency/workspaces/${id}/switch`, { method: 'POST' }),
+  clients: () => apiFetch('/v1/agency/clients'),
+  addClient: (data) => apiFetch('/v1/agency/clients', { method: 'POST', body: JSON.stringify(data) }),
+  updateClient: (id, data) => apiFetch(`/v1/agency/clients/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  deleteClient: (id) => apiFetch(`/v1/agency/clients/${id}`, { method: 'DELETE' })
+};
+
+// ── Team ─────────────────────────────────────────────────────
+export const teamApi = {
+  get: () => apiFetch('/v1/team'),
+  addMember: (data) => apiFetch('/v1/team/members', { method: 'POST', body: JSON.stringify(data) }),
+  updateMember: (id, data) => apiFetch(`/v1/team/members/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  removeMember: (id) => apiFetch(`/v1/team/members/${id}`, { method: 'DELETE' }),
+  invite: (data) => apiFetch('/v1/team/invitations', { method: 'POST', body: JSON.stringify(data) }),
+  revokeInvite: (id) => apiFetch(`/v1/team/invitations/${id}`, { method: 'DELETE' })
+};
+
 // ── Generic API helper ────────────────────────────────────────
 export const api = {
   get: (path) => apiFetch('/v1' + path),

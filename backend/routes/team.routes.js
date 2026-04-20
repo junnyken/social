@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const dataService = require('../services/data.service');
 const { requireAuth } = require('../middleware/auth.middleware');
+const { requirePermission, requireRole } = require('../middleware/rbac.middleware');
 
 router.use(requireAuth);
 
@@ -29,7 +30,7 @@ router.get('/', async (req, res) => {
 });
 
 // Add member
-router.post('/members', async (req, res) => {
+router.post('/members', requirePermission('team_manage'), async (req, res) => {
     try {
         const teamData = await dataService.read('team') || { members: [], invitations: [], activities: [] };
         const newMember = {
@@ -58,7 +59,7 @@ router.post('/members', async (req, res) => {
 });
 
 // Update member role
-router.patch('/members/:id', async (req, res) => {
+router.patch('/members/:id', requirePermission('team_manage'), async (req, res) => {
     try {
         const teamData = await dataService.read('team') || { members: [], invitations: [], activities: [] };
         const member = teamData.members.find(m => m.id === req.params.id);
@@ -85,7 +86,7 @@ router.patch('/members/:id', async (req, res) => {
 });
 
 // Remove member
-router.delete('/members/:id', async (req, res) => {
+router.delete('/members/:id', requirePermission('team_manage'), async (req, res) => {
     try {
         const teamData = await dataService.read('team') || { members: [], invitations: [], activities: [] };
         const memberIndex = teamData.members.findIndex(m => m.id === req.params.id);
@@ -137,7 +138,7 @@ router.post('/invitations', async (req, res) => {
 });
 
 // Revoke invitation
-router.delete('/invitations/:id', async (req, res) => {
+router.delete('/invitations/:id', requirePermission('team_manage'), async (req, res) => {
     try {
         const teamData = await dataService.read('team') || { members: [], invitations: [], activities: [] };
         teamData.invitations = teamData.invitations.filter(i => i.id !== req.params.id);
