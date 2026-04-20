@@ -40,5 +40,11 @@ module.exports = {
     groupsPerHour: 10,
   },
   dataDir: './data',
+  linkedin: {
+    clientId: process.env.LINKEDIN_CLIENT_ID,
+    clientSecret: process.env.LINKEDIN_CLIENT_SECRET,
+    redirectUri: process.env.LINKEDIN_REDIRECT_URI || 'https://social-9cpy.onrender.com/api/v1/auth/linkedin/callback',
+    scopes: ['openid', 'profile', 'email', 'w_member_social']
+  },
   mongoUri: process.env.MONGO_URI || null
 };

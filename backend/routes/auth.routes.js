@@ -291,4 +291,132 @@ router.get('/deletion-status', (req, res) => {
     });
 });
 
+// ═══════════════════════════════════════════════════════════════
+// LINKEDIN OAUTH2 CONNECT
+// ═══════════════════════════════════════════════════════════════
+
+function getLinkedInRedirectUri(req) {
+    if (config.linkedin?.redirectUri && !config.linkedin.redirectUri.includes('localhost')) {
+        return config.linkedin.redirectUri;
+    }
+    const protocol = req.get('x-forwarded-proto') || req.protocol;
+    const host = req.get('host');
+    return `${protocol}://${host}/api/v1/auth/linkedin/callback`;
+}
+
+// Step 1: Redirect to LinkedIn OAuth
+router.get('/linkedin', (req, res) => {
+    const redirectUri = getLinkedInRedirectUri(req);
+    const scopes = (config.linkedin?.scopes || ['openid', 'profile', 'email', 'w_member_social']).join(' ');
+
+    const params = new URLSearchParams({
+        response_type: 'code',
+        client_id: config.linkedin?.clientId,
+        redirect_uri: redirectUri,
+        scope: scopes,
+        state: 'linkedin_connect_' + Date.now()
+    });
+
+    const url = `https://www.linkedin.com/oauth/v2/authorization?${params}`;
+    console.log('[Auth] LinkedIn OAuth URL:', url);
+    res.redirect(url);
+});
+
+// Step 2: LinkedIn Callback → exchange code for token
+router.get('/linkedin/callback', async (req, res) => {
+    const { code, error, error_description } = req.query;
+
+    if (error) {
+        console.error('[Auth] LinkedIn OAuth error:', error, error_description);
+        return res.redirect('/#/settings?linkedin=error&msg=' + encodeURIComponent(error_description || error));
+    }
+
+    if (!code) {
+        return res.redirect('/#/settings?linkedin=error&msg=No+code+received');
+    }
+
+    try {
+        const redirectUri = getLinkedInRedirectUri(req);
+
+        // Exchange code for access token
+        const tokenRes = await axios.post('https://www.linkedin.com/oauth/v2/accessToken', null, {
+            params: {
+                grant_type: 'authorization_code',
+                code,
+                redirect_uri: redirectUri,
+                client_id: config.linkedin?.clientId,
+                client_secret: config.linkedin?.clientSecret
+            },
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+        });
+
+        const accessToken = tokenRes.data.access_token;
+        const expiresIn = tokenRes.data.expires_in; // seconds
+
+        // Fetch LinkedIn profile
+        let profile = {};
+        try {
+            const profileRes = await axios.get('https://api.linkedin.com/v2/userinfo', {
+                headers: { 'Authorization': `Bearer ${accessToken}` }
+            });
+            profile = profileRes.data;
+        } catch (e) {
+            console.error('[Auth] LinkedIn profile fetch error:', e.response?.data || e.message);
+        }
+
+        // Fetch person URN for posting
+        let personUrn = '';
+        try {
+            const meRes = await axios.get('https://api.linkedin.com/v2/me', {
+                headers: { 'Authorization': `Bearer ${accessToken}` }
+            });
+            personUrn = `urn:li:person:${meRes.data.id}`;
+        } catch (e) {
+            console.error('[Auth] LinkedIn /me error:', e.response?.data || e.message);
+        }
+
+        // Store LinkedIn tokens on the user's account
+        const accounts = await dataService.getAll('accounts') || [];
+        if (accounts.length > 0) {
+            const account = accounts[0]; // Current account
+            await dataService.update('accounts', account.id, {
+                linkedinToken: accessToken,
+                linkedinUrn: personUrn,
+                linkedinName: profile.name || profile.given_name || 'LinkedIn User',
+                linkedinEmail: profile.email || '',
+                linkedinExpiresAt: new Date(Date.now() + (expiresIn * 1000)).toISOString(),
+                linkedinConnectedAt: new Date().toISOString()
+            });
+            console.log('[Auth] LinkedIn connected successfully for:', profile.name || personUrn);
+        }
+
+        // Redirect back to app with success
+        res.redirect('/#/settings?linkedin=success&name=' + encodeURIComponent(profile.name || 'LinkedIn'));
+
+    } catch (e) {
+        console.error('[Auth] LinkedIn token exchange error:', e.response?.data || e.message);
+        res.redirect('/#/settings?linkedin=error&msg=' + encodeURIComponent(e.response?.data?.error_description || e.message));
+    }
+});
+
+// LinkedIn disconnect
+router.post('/linkedin/disconnect', async (req, res) => {
+    try {
+        const accounts = await dataService.getAll('accounts') || [];
+        if (accounts.length > 0) {
+            await dataService.update('accounts', accounts[0].id, {
+                linkedinToken: null,
+                linkedinUrn: null,
+                linkedinName: null,
+                linkedinEmail: null,
+                linkedinExpiresAt: null,
+                linkedinConnectedAt: null
+            });
+        }
+        res.json({ success: true, message: 'LinkedIn disconnected' });
+    } catch (e) {
+        res.status(500).json({ success: false, message: e.message });
+    }
+});
+
 module.exports = router;
