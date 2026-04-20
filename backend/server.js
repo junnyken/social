@@ -8,6 +8,7 @@ const http = require('http');
 const { WebSocketServer } = require('ws');
 const path = require('path');
 const config = require('./config');
+const { connectDB, disconnectDB, getConnectionStatus } = require('./db');
 
 // Initialize Express App
 const app = express();
@@ -81,6 +82,18 @@ app.get('/api/v1/health/deep', async (req, res) => {
         checks.dataService = { status: readBack ? 'ok' : 'degraded', latency: '< 1ms' };
     } catch (e) {
         checks.dataService = { status: 'error', error: e.message };
+    }
+
+    // Check MongoDB
+    try {
+        const mongoStatus = getConnectionStatus();
+        checks.mongodb = {
+            status: mongoStatus.connected ? 'ok' : 'disconnected',
+            host: mongoStatus.host,
+            database: mongoStatus.name
+        };
+    } catch (e) {
+        checks.mongodb = { status: 'error', error: e.message };
     }
 
     // Check Gemini API
@@ -248,20 +261,32 @@ const { initializeSocketIO } = require('./config/socket-io');
 const io = initializeSocketIO(server, config);
 app.set('io', io);
 
-// Start Server
-server.listen(config.port, () => {
-    console.log(`\n╔═══════════════════════════════════════════════════════╗`);
-    console.log(`║  🚀 SocialHub v2.0 — Production Ready                ║`);
-    console.log(`║  📡 Server: http://localhost:${config.port}                    ║`);
-    console.log(`║  🔧 Environment: ${config.env.padEnd(37)}║`);
-    console.log(`║  📊 Routes: ${String(countRoutes(app)).padEnd(42)}║`);
-    console.log(`║  🕐 Started: ${new Date().toLocaleString('vi-VN').padEnd(41)}║`);
-    console.log(`╚═══════════════════════════════════════════════════════╝\n`);
+// Start Server (with MongoDB)
+async function startServer() {
+    // Connect to MongoDB first
+    const mongoConnected = await connectDB();
+    console.log(`[DB] MongoDB: ${mongoConnected ? '✅ Connected' : '⚠️  Using file fallback'}`);
 
-    // Start Scheduler
-    const schedulerService = require('./services/scheduler.service');
-    schedulerService.setApp(app);
-    schedulerService.start();
+    server.listen(config.port, () => {
+        console.log(`\n╔═══════════════════════════════════════════════════════╗`);
+        console.log(`║  🚀 SocialHub v2.0 — Production Ready                ║`);
+        console.log(`║  📡 Server: http://localhost:${config.port}                    ║`);
+        console.log(`║  🔧 Environment: ${config.env.padEnd(37)}║`);
+        console.log(`║  🗄️  Database: ${(mongoConnected ? 'MongoDB Atlas' : 'JSON Files').padEnd(39)}║`);
+        console.log(`║  📊 Routes: ${String(countRoutes(app)).padEnd(42)}║`);
+        console.log(`║  🕐 Started: ${new Date().toLocaleString('vi-VN').padEnd(41)}║`);
+        console.log(`╚═══════════════════════════════════════════════════════╝\n`);
+
+        // Start Scheduler
+        const schedulerService = require('./services/scheduler.service');
+        schedulerService.setApp(app);
+        schedulerService.start();
+    });
+}
+
+startServer().catch(err => {
+    console.error('[Server] Failed to start:', err);
+    process.exit(1);
 });
 
 // ═══════════════════════════════════════════════════════════════
@@ -269,7 +294,8 @@ server.listen(config.port, () => {
 // ═══════════════════════════════════════════════════════════════
 const shutdown = (signal) => {
     console.log(`\n[System] Received ${signal}. Shutting down gracefully...`);
-    server.close(() => {
+    server.close(async () => {
+        await disconnectDB();
         console.log('[System] HTTP server closed.');
         console.log('[System] Uptime was:', formatUptime(process.uptime()));
         process.exit(0);

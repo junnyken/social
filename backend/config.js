@@ -39,5 +39,6 @@ module.exports = {
     dailyPostsPerAccount: 20,
     groupsPerHour: 10,
   },
-  dataDir: './data'
+  dataDir: './data',
+  mongoUri: process.env.MONGO_URI || null
 };
