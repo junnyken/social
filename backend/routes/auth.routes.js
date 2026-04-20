@@ -419,4 +419,28 @@ router.post('/linkedin/disconnect', async (req, res) => {
     }
 });
 
+// ═══════════════════════════════════════════════════════════════
+// TOKEN HEALTH — Check status of all OAuth tokens
+// ═══════════════════════════════════════════════════════════════
+router.get('/token-health', async (req, res) => {
+    try {
+        const { getTokenHealth } = require('../services/token-renewal.service');
+        const health = await getTokenHealth();
+        res.json({ success: true, data: health });
+    } catch (e) {
+        res.status(500).json({ success: false, message: e.message });
+    }
+});
+
+// Manual token renewal trigger
+router.post('/token-renew', async (req, res) => {
+    try {
+        const { checkAndRenewTokens } = require('../services/token-renewal.service');
+        await checkAndRenewTokens();
+        res.json({ success: true, message: 'Token renewal check completed' });
+    } catch (e) {
+        res.status(500).json({ success: false, message: e.message });
+    }
+});
+
 module.exports = router;

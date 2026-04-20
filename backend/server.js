@@ -153,6 +153,12 @@ function countRoutes(app) {
 // ═══════════════════════════════════════════════════════════════
 app.use('/api', require('./services/audit.service').loggerMiddleware('system'));
 app.use('/api/v1/auth', require('./routes/auth.routes'));
+
+// Workspace scoping — attaches req.data (scoped DataService) to all authenticated routes
+const { requireAuth } = require('./middleware/auth.middleware');
+const workspaceMiddleware = require('./middleware/workspace.middleware');
+app.use('/api/v1', requireAuth, workspaceMiddleware);
+
 app.use('/api/v1/accounts', require('./routes/accounts.routes'));
 app.use('/api/v1/pages', require('./routes/pages.routes'));
 app.use('/api/v1/fb/pages', require('./routes/fb-pages.routes'));

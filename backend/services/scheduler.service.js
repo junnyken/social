@@ -6,6 +6,8 @@ const cryptoSvc = require('./crypto.service');
 const spinner = require('./spinner.service');
 const logger = require('./logger.service');
 const delaySvc = require('./delay.service');
+const { checkAndRenewTokens } = require('./token-renewal.service');
+const { emitToAll } = require('../config/socket-io');
 
 class SchedulerService {
     constructor() {
@@ -29,6 +31,15 @@ class SchedulerService {
         
         this.task.start();
         this.isRunning = true;
+
+        // Token renewal — daily at 3:00 AM
+        cron.schedule('0 3 * * *', async () => {
+            console.log('[Scheduler] 🔑 Running daily token renewal check...');
+            try { await checkAndRenewTokens(); } catch (e) {
+                console.error('[Scheduler] Token renewal error:', e.message);
+            }
+        });
+        console.log('[Scheduler] 🔑 Token renewal cron scheduled (daily 3 AM)');
     }
 
     stop() {

@@ -3,6 +3,7 @@ import { initSocket, trackNavigation } from '../modules/collab/socket-client.js'
 import { initPresenceUI } from '../modules/collab/presence-ui.js';
 import { initNotificationUI } from '../modules/collab/notification-ui.js';
 import { initErrorBoundary } from '../modules/collab/error-boundary.js';
+import { initWorkspaceSwitcher } from '../modules/workspace-switcher.js';
 
 import { getLanguage, setLanguage, t } from './i18n.js';
 
@@ -45,6 +46,10 @@ async function initApp() {
   await initSocket();
   initPresenceUI();
   initNotificationUI();
+  initWorkspaceSwitcher();
+
+  // Real-time event listeners
+  setupRealtimeListeners();
 
   // 4. Start routing
   router();
@@ -54,6 +59,37 @@ async function initApp() {
   
   // Expose Toast globally if it exists mapped from fb-autoposter
   window.Toast = window.Toast || { show: (msg) => alert(msg) };
+}
+
+function setupRealtimeListeners() {
+  if (!window._socket) return;
+  const s = window._socket;
+
+  // Join active workspace room
+  const wsId = localStorage.getItem('activeWorkspaceId') || 'default';
+  s.emit('join:workspace', wsId);
+
+  s.on('post:published', (d) => {
+    window.Toast?.show(`✅ Bài đã đăng: ${d.platform || ''}`, 'success');
+  });
+  s.on('post:failed', (d) => {
+    window.Toast?.show(`❌ Đăng bài thất bại: ${d.error || ''}`, 'error');
+  });
+  s.on('token:expiring', (d) => {
+    window.Toast?.show(`⚠️ Token ${d.platform} sắp hết hạn (${d.daysLeft} ngày)`, 'warning');
+  });
+  s.on('token:expired', (d) => {
+    window.Toast?.show(`🔴 Token ${d.platform} đã hết hạn! Vui lòng re-connect.`, 'error');
+  });
+  s.on('token:renewed', (d) => {
+    window.Toast?.show(`🔑 Token ${d.platform} đã tự động gia hạn`, 'success');
+  });
+  s.on('mention:new', (d) => {
+    window.Toast?.show(`🔔 Đề cập mới: "${d.text?.slice(0, 50)}"`, 'info');
+  });
+  s.on('abtest:completed', (d) => {
+    window.Toast?.show(`🧪 A/B Test hoàn thành: ${d.name || ''}`, 'info');
+  });
 }
 
 function setupGlobalEventHandlers() {

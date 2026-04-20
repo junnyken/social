@@ -20,6 +20,7 @@ exports.requireAuth = async (req, res, next) => {
                     id: account.id,
                     name: account.name || 'User',
                     role: 'owner',
+                    workspaceId: account.activeWorkspaceId || 'default',
                     sessionId: cookieUserId
                 };
                 return next();
@@ -40,7 +41,8 @@ exports.requireAuth = async (req, res, next) => {
                     req.user = {
                         id: account.id,
                         name: account.name || 'User',
-                        role: 'owner'
+                        role: 'owner',
+                        workspaceId: account.activeWorkspaceId || 'default'
                     };
                     return next();
                 }
@@ -51,7 +53,8 @@ exports.requireAuth = async (req, res, next) => {
             req.user = {
                 id: token.slice(0, 20) || 'api-user',
                 name: 'API User',
-                role: 'owner'
+                role: 'owner',
+                workspaceId: 'default'
             };
             return next();
         }
@@ -62,7 +65,8 @@ exports.requireAuth = async (req, res, next) => {
         req.user = {
             id: 'local_system_user',
             name: 'Trieu Nguyen',
-            role: 'owner'
+            role: 'owner',
+            workspaceId: 'default'
         };
         return next();
     }

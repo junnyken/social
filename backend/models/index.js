@@ -1,5 +1,8 @@
 const mongoose = require('mongoose');
 
+// Workspace-scoped field mixin — added to all per-workspace collections
+const wsField = { workspaceId: { type: String, default: 'default', index: true } };
+
 // ── Account ──
 const AccountSchema = new mongoose.Schema({
     name:         { type: String, required: true },
@@ -17,6 +20,7 @@ const AccountSchema = new mongoose.Schema({
 
 // ── QueueItem ──
 const QueueItemSchema = new mongoose.Schema({
+    ...wsField,
     accountId:    { type: String, required: true },
     target:       { type: mongoose.Schema.Types.Mixed },
     content:      String,
@@ -30,6 +34,7 @@ const QueueItemSchema = new mongoose.Schema({
 
 // ── Log ──
 const LogSchema = new mongoose.Schema({
+    ...wsField,
     type:      { type: String, default: 'info' },
     action:    String,
     message:   String,
@@ -40,6 +45,7 @@ const LogSchema = new mongoose.Schema({
 
 // ── Contact ──
 const ContactSchema = new mongoose.Schema({
+    ...wsField,
     name:       String,
     platform:   { type: String, default: 'facebook' },
     platformId: String,
@@ -53,6 +59,7 @@ const ContactSchema = new mongoose.Schema({
 
 // ── InboxMessage ──
 const InboxMessageSchema = new mongoose.Schema({
+    ...wsField,
     from:       String,
     to:         String,
     pageId:     String,
@@ -80,6 +87,7 @@ const AuditLogSchema = new mongoose.Schema({
 
 // ── Schedule ──
 const ScheduleSchema = new mongoose.Schema({
+    ...wsField,
     name:        String,
     accountId:   String,
     pageId:      String,
@@ -99,6 +107,7 @@ const SettingsSchema = new mongoose.Schema({
 
 // ── Notification ──
 const NotificationSchema = new mongoose.Schema({
+    ...wsField,
     userId:  String,
     type:    { type: String, default: 'info' },
     title:   String,
@@ -119,6 +128,7 @@ const TeamMemberSchema = new mongoose.Schema({
 
 // ── Workflow ──
 const WorkflowSchema = new mongoose.Schema({
+    ...wsField,
     name:     { type: String, required: true },
     type:     { type: String, default: 'approval' },
     steps:    [{ name: String, assignee: String, status: String, order: Number }],
@@ -128,6 +138,7 @@ const WorkflowSchema = new mongoose.Schema({
 
 // ── LibraryItem ──
 const LibraryItemSchema = new mongoose.Schema({
+    ...wsField,
     name:     String,
     type:     { type: String, default: 'image', enum: ['image', 'video', 'document', 'template'] },
     url:      String,
@@ -140,6 +151,7 @@ const LibraryItemSchema = new mongoose.Schema({
 
 // ── Competitor ──
 const CompetitorSchema = new mongoose.Schema({
+    ...wsField,
     name:       { type: String, required: true },
     platform:   { type: String, default: 'facebook' },
     platformId: String,
@@ -151,6 +163,7 @@ const CompetitorSchema = new mongoose.Schema({
 
 // ── A/B Experiment ──
 const ABExperimentSchema = new mongoose.Schema({
+    ...wsField,
     id:                { type: String, unique: true },
     name:              String,
     description:       String,
@@ -170,6 +183,7 @@ const ABExperimentSchema = new mongoose.Schema({
 
 // ── Bulk Campaign ──
 const BulkCampaignSchema = new mongoose.Schema({
+    ...wsField,
     id:                 { type: String, unique: true },
     name:               String,
     description:        String,
@@ -188,6 +202,7 @@ const BulkCampaignSchema = new mongoose.Schema({
 
 // ── Evergreen Queue ──
 const EvergreenQueueSchema = new mongoose.Schema({
+    ...wsField,
     id:          { type: String, unique: true },
     name:        String,
     description: String,
@@ -201,6 +216,7 @@ const EvergreenQueueSchema = new mongoose.Schema({
 
 // ── Listening Keyword ──
 const ListeningKeywordSchema = new mongoose.Schema({
+    ...wsField,
     id:           { type: String, unique: true },
     term:         { type: String, required: true },
     color:        String,
@@ -209,6 +225,7 @@ const ListeningKeywordSchema = new mongoose.Schema({
 
 // ── Listening Mention ──
 const ListeningMentionSchema = new mongoose.Schema({
+    ...wsField,
     id:             { type: String, unique: true },
     keyword:        String,
     text:           String,
@@ -222,6 +239,7 @@ const ListeningMentionSchema = new mongoose.Schema({
 
 // ── Link-in-Bio Page ──
 const LinkInBioPageSchema = new mongoose.Schema({
+    ...wsField,
     id:           { type: String, unique: true },
     slug:         { type: String, unique: true },
     title:        String,
@@ -237,6 +255,7 @@ const LinkInBioPageSchema = new mongoose.Schema({
 
 // ── PDF Report ──
 const PDFReportSchema = new mongoose.Schema({
+    ...wsField,
     id:                { type: String, unique: true },
     title:             String,
     branding:          mongoose.Schema.Types.Mixed,
@@ -253,6 +272,7 @@ const PDFReportSchema = new mongoose.Schema({
 
 // ── UTM Link ──
 const UTMLinkSchema = new mongoose.Schema({
+    ...wsField,
     id:          { type: String, unique: true },
     name:        String,
     baseUrl:     String,

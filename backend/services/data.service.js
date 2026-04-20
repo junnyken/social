@@ -175,6 +175,57 @@ class DataService {
         return true;
     }
 
+    // ══════════════════════════════════════════════════════════
+    // WORKSPACE-SCOPED PROXY
+    // ══════════════════════════════════════════════════════════
+
+    static GLOBAL_COLLECTIONS = new Set([
+        'accounts', 'settings', 'team', 'brand_voice', 'audit_logs'
+    ]);
+
+    /**
+     * Returns a proxy that auto-filters by workspaceId.
+     * Usage: const data = dataService.scoped('ws-123');
+     *        const posts = await data.getAll('queue');  // only ws-123 items
+     */
+    scoped(workspaceId) {
+        const self = this;
+        return {
+            getAll:  (col) => self._scopedGetAll(col, workspaceId),
+            getById: (col, id) => self.getById(col, id),
+            create:  (col, item) => {
+                if (DataService.GLOBAL_COLLECTIONS.has(col)) return self.create(col, item);
+                return self.create(col, { ...item, workspaceId });
+            },
+            update:  (col, id, updates) => self.update(col, id, updates),
+            remove:  (col, id) => self.remove(col, id),
+            read:    (col) => self._scopedGetAll(col, workspaceId),
+            write:   (col, data) => self.write(col, data),
+        };
+    }
+
+    async _scopedGetAll(collection, workspaceId) {
+        if (DataService.GLOBAL_COLLECTIONS.has(collection)) {
+            return this.getAll(collection);
+        }
+        if (this._isMongoConnected()) {
+            const Model = this._getModel(collection);
+            if (Model) {
+                try {
+                    const docs = await Model.find({ workspaceId })
+                        .sort({ createdAt: -1 }).lean();
+                    return docs.map(d => ({ ...d, id: d.id || d._id?.toString() }));
+                } catch (e) {
+                    console.error(`[DataService/Scoped] getAll(${collection}, ws=${workspaceId}):`, e.message);
+                    return [];
+                }
+            }
+        }
+        // File fallback: filter in memory
+        const all = await this._fileRead(collection);
+        return all.filter(d => d.workspaceId === workspaceId || (!d.workspaceId && workspaceId === 'default'));
+    }
+
     // ── Compatibility aliases ──
     async read(collection) {
         return this.getAll(collection);

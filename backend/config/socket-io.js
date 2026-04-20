@@ -249,10 +249,19 @@ function generateColor(userId) {
     return colors[Math.abs(hash) % colors.length];
 }
 
+function emitToWorkspace(workspaceId, event, data) {
+    if (!io) return;
+    io.to(`workspace:${workspaceId}`).emit(event, {
+        ...data,
+        timestamp: new Date().toISOString()
+    });
+}
+
 module.exports = {
     initializeSocketIO,
     getIO,
     getConnectedUsers,
     emitNotification,
-    emitToAll
+    emitToAll,
+    emitToWorkspace
 };
