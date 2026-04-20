@@ -17,6 +17,9 @@ const crypto = require('crypto');
 const Models = require('../models');
 
 // Map collection names (used in routes) → Mongoose model
+// NOTE: 'team' and 'library' are excluded because those routes store
+// structured objects {members:[], templates:[]}, not flat document arrays.
+// They use file-based storage via the _fileRead/_fileWrite fallback.
 const COLLECTION_MAP = {
     'accounts':           Models.Account,
     'queue':              Models.QueueItem,
@@ -28,9 +31,7 @@ const COLLECTION_MAP = {
     'schedules':          Models.Schedule,
     'settings':           Models.Settings,
     'notifications':      Models.Notification,
-    'team':               Models.TeamMember,
     'workflows':          Models.Workflow,
-    'library':            Models.LibraryItem,
     'competitors':        Models.Competitor,
     'ab_experiments':     Models.ABExperiment,
     'bulk_campaigns':     Models.BulkCampaign,
